@@ -40,6 +40,8 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         if (settings.getString("mode", "shizuku") == "root") AccessMode.Root else AccessMode.Shizuku
     )
         private set
+    var startAtBoot by mutableStateOf(settings.getBoolean("start_at_boot", false))
+        private set
     var rootError by mutableStateOf<String?>(null)
         private set
     private var rootConnected by mutableStateOf(false)
@@ -231,6 +233,11 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         rootConnected = false
         settings.edit().putString("mode", "shizuku").apply()
         if (shizukuStatus == ShizukuStatus.Connected) start()
+    }
+
+    fun updateStartAtBoot(enabled: Boolean) {
+        startAtBoot = enabled
+        settings.edit().putBoolean("start_at_boot", enabled).apply()
     }
 
     fun connectRoot(context: Context) {

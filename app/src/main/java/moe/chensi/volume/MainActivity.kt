@@ -21,13 +21,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
@@ -130,17 +135,9 @@ class MainActivity : ComponentActivity() {
 
     val powerManager by lazy { getSystemService(PowerManager::class.java)!! }
     var isIgnoringBatteryOptimization by mutableStateOf(false)
-    private var isAccessibilityEnabled by mutableStateOf(false)
     private fun checkBatteryOptimization() {
         isIgnoringBatteryOptimization =
             powerManager.isIgnoringBatteryOptimizations(applicationInfo.packageName)
-    }
-
-    private fun checkAccessibilityService() {
-        val serviceName = ComponentName(this, Service::class.java).flattenToString()
-        isAccessibilityEnabled = Settings.Secure.getString(
-            contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )?.split(':')?.contains(serviceName) == true
     }
 
     @SuppressLint("DiscouragedPrivateApi")
@@ -156,12 +153,12 @@ class MainActivity : ComponentActivity() {
             CrashHandler.hasCrashReport() && CrashHandler.readCrashReport() != null
 
         checkBatteryOptimization()
-        checkAccessibilityService()
 
         setContent {
             var showAll by remember { mutableStateOf(false) }
             var crashReport by remember { mutableStateOf<String?>(null) }
             var showAboutDialog by remember { mutableStateOf(false) }
+            var showSettingsDialog by remember { mutableStateOf(false) }
 
             LaunchedEffect(showCrashReport) {
                 if (showCrashReport) {
@@ -200,6 +197,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            if (showSettingsDialog) {
+                Dialog(onDismissRequest = { showSettingsDialog = false }) {
+                    VolumeManagerTheme {
+                        RootStartupSettingsDialog(
+                            isRootMode = manager.accessMode == Manager.AccessMode.Root,
+                            startAtBoot = manager.startAtBoot,
+                            onStartAtBootChange = manager::updateStartAtBoot,
+                            onDismiss = { showSettingsDialog = false }
+                        )
+                    }
+                }
+            }
+
             VolumeManagerTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(), topBar = {
@@ -214,12 +224,16 @@ class MainActivity : ComponentActivity() {
                                 ToggleButton(
                                     checked = showAll,
                                     checkedIcon = Icons.Default.Check,
-                                    checkedDescription = "Save",
-                                    uncheckedIcon = Icons.Default.Settings,
-                                    uncheckedDescription = "Settings"
+                                    checkedDescription = "Save slider visibility",
+                                    uncheckedIcon = Icons.Default.Tune,
+                                    uncheckedDescription = "Configure sliders"
                                 ) {
                                     showAll = it
                                 }
+                            }
+
+                            IconButton(onClick = { showSettingsDialog = true }) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings")
                             }
 
                             TooltipBox(
@@ -388,7 +402,6 @@ class MainActivity : ComponentActivity() {
         super.onResume()
 
         checkBatteryOptimization()
-        checkAccessibilityService()
     }
 
 
@@ -453,18 +466,49 @@ class MainActivity : ComponentActivity() {
 
         Log.i(TAG, "Manufacturer: ${Build.MANUFACTURER}")
 
-        if (application.manager.accessMode == Manager.AccessMode.Root) {
-            if (!isAccessibilityEnabled) {
-                Button(onClick = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
-                    Text("Enable accessibility service for volume buttons")
-                }
-            }
-        }
-
         if (!isIgnoringBatteryOptimization) {
             Button(onClick = { openBatterySettings() }) {
                 Text(text = "Disable battery optimization")
             }
         }
+    }
+
+    @Composable
+    private fun RootStartupSettingsDialog(
+        isRootMode: Boolean,
+        startAtBoot: Boolean,
+        onStartAtBootChange: (Boolean) -> Unit,
+        onDismiss: () -> Unit
+    ) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Settings") },
+            text = {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Start Root mode after boot")
+                            Text(
+                                if (isRootMode) {
+                                    "Reconnect the temporary root bridge after Android starts."
+                                } else {
+                                    "Switch to Root mode to enable automatic startup."
+                                },
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = startAtBoot,
+                            enabled = isRootMode,
+                            onCheckedChange = onStartAtBootChange
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text("Done") }
+            }
+        )
     }
 }
