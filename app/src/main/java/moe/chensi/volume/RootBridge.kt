@@ -1,7 +1,6 @@
 package moe.chensi.volume
 
 import android.content.Context
-import android.net.Uri
 import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
@@ -34,8 +33,24 @@ object RootBridge {
                 return super.onTransact(code, data, reply, flags)
             }
         })
-        val uri = Uri.parse("content://${RootAccess.AUTHORITY}")
-        val result = context.contentResolver.call(uri, RootAccess.INSTALL, null, services)
+        // ContentResolver's normal path requires a registered IApplicationThread. An
+        // app_process started through su is external to ActivityManager instead.
+        val manager = Reflect.onClass("android.app.ActivityManager").call("getService").get<Any>()
+        val token = Binder()
+        val holder = Reflect.on(manager).call(
+            "getContentProviderExternal", RootAccess.AUTHORITY, 0, token, "VolumeManager"
+        ).get<Any?>() ?: error("Root bridge provider unavailable")
+        val result = try {
+            val provider = Reflect.on(holder).get<Any>("provider")
+            Reflect.on(provider).call(
+                "call", context.attributionSource, RootAccess.AUTHORITY,
+                RootAccess.INSTALL, null, services
+            ).get<Bundle?>()
+        } finally {
+            Reflect.on(manager).call(
+                "removeContentProviderExternalAsUser", RootAccess.AUTHORITY, token, 0
+            )
+        }
         check(result?.getBoolean("connected") == true) { "Bridge handoff failed" }
         val owner = result.getBinder("owner") ?: error("Missing app owner Binder")
         owner.linkToDeath({ Process.killProcess(Process.myPid()) }, 0)
