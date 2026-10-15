@@ -56,4 +56,3 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: volume-manager-*.apk
-          archive: false
