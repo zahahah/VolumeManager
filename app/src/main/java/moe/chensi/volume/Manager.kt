@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioPlaybackConfiguration
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +32,21 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     enum class ShizukuStatus {
         Uninstalled, Disconnected, PermissionDenied, Connected
     }
+
+    enum class AccessMode { Shizuku, Root }
+
+    private val settings = context.getSharedPreferences("access", Context.MODE_PRIVATE)
+    var accessMode by mutableStateOf(
+        if (settings.getString("mode", "shizuku") == "root") AccessMode.Root else AccessMode.Shizuku
+    )
+        private set
+    var rootError by mutableStateOf<String?>(null)
+        private set
+    private var rootConnected by mutableStateOf(false)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var started = false
+    val isConnected: Boolean
+        get() = if (accessMode == AccessMode.Root) rootConnected else shizukuStatus == ShizukuStatus.Connected
 
     private var _shizukuStatus by mutableStateOf(ShizukuStatus.Disconnected)
     val shizukuStatus
@@ -144,6 +161,22 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
             _shizukuStatus = ShizukuStatus.Disconnected
         }
 
+        RootAccess.active = accessMode == AccessMode.Root
+        RootAccess.onConnected = {
+            mainHandler.post {
+                rootConnected = true
+                rootError = null
+                if (accessMode == AccessMode.Root) start()
+            }
+        }
+        RootAccess.onDisconnected = {
+            mainHandler.post {
+                rootConnected = false
+                if (accessMode == AccessMode.Root) rootError = "Root bridge disconnected"
+            }
+        }
+        if (accessMode == AccessMode.Root) connectRoot(context)
+
         Shizuku.addBinderReceivedListenerSticky {
             if (Shizuku.isPreV11()) {
                 return@addBinderReceivedListenerSticky
@@ -151,7 +184,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
 
             if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                 _shizukuStatus = ShizukuStatus.Connected
-                start()
+                if (accessMode == AccessMode.Shizuku) start()
             } else {
                 _shizukuStatus = ShizukuStatus.PermissionDenied
             }
@@ -164,7 +197,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         Shizuku.addRequestPermissionResultListener { _, grantResult ->
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
                 _shizukuStatus = ShizukuStatus.Connected
-                start()
+                if (accessMode == AccessMode.Shizuku) start()
             }
         }
 
@@ -172,6 +205,8 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     }
 
     private fun start() {
+        if (started) return
+        started = true
         appPreferencesStore.track { first ->
             for ((packageName, index) in appPreferencesStore.indices) {
                 if (!first) {
@@ -186,6 +221,26 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
             if (first) {
                 initialize()
             }
+        }
+    }
+
+    fun selectShizuku() {
+        accessMode = AccessMode.Shizuku
+        RootAccess.active = false
+        RootAccess.disconnect()
+        rootConnected = false
+        settings.edit().putString("mode", "shizuku").apply()
+        if (shizukuStatus == ShizukuStatus.Connected) start()
+    }
+
+    fun connectRoot(context: Context) {
+        accessMode = AccessMode.Root
+        RootAccess.active = true
+        rootConnected = RootAccess.connected
+        rootError = null
+        settings.edit().putString("mode", "root").apply()
+        RootAccess.connect(context) { message ->
+            mainHandler.post { if (accessMode == AccessMode.Root) rootError = message }
         }
     }
 }

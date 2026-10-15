@@ -32,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -185,9 +184,9 @@ class Service : AccessibilityService() {
             override fun Content() {
                 return VolumeManagerTheme {
                     Surface(
-                        color = Color(1f, 1f, 1f, 0.3f),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
                         contentColor = MaterialTheme.colorScheme.onSurface,
-                        shape = RoundedCornerShape(40f)
+                        shape = RoundedCornerShape(28.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(20.dp, 16.dp)
@@ -311,7 +310,7 @@ class Service : AccessibilityService() {
         accessibilityButtonController.registerAccessibilityButtonCallback(object :
             AccessibilityButtonCallback() {
             override fun onClicked(controller: AccessibilityButtonController?) {
-                if (manager.shizukuStatus == Manager.ShizukuStatus.Connected) {
+                if (manager.isConnected) {
                     showView()
                 }
             }
@@ -344,7 +343,7 @@ class Service : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent): Boolean {
         Log.i(
             TAG,
-            "onKeyEvent action = ${event.action}, key code = ${event.keyCode}, shizuku permission = ${manager.shizukuStatus}"
+            "onKeyEvent action = ${event.action}, key code = ${event.keyCode}, privileged connection = ${manager.isConnected}"
         )
 
         // Only handle `VOLUME_UP` and `VOLUME_DOWN`
@@ -353,7 +352,7 @@ class Service : AccessibilityService() {
         }
 
         // Ignore if Shizuku is not ready
-        if (manager.shizukuStatus != Manager.ShizukuStatus.Connected) {
+        if (!manager.isConnected) {
             return false
         }
 

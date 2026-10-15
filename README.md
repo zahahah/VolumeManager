@@ -5,7 +5,7 @@
 
 **Work in progress**
 
-Control each app's volume independently. [Shizuku](https://shizuku.rikka.app/) is used to access privileged APIs.
+Control each app's volume independently. Privileged APIs can be accessed with either [Shizuku](https://shizuku.rikka.app/) or root (`su`).
 
 Requires Android 13.
 
@@ -22,13 +22,15 @@ Some hand-picked versions can also be downloaded from [releases](https://github.
 
 ## Usage
 
-1. Install and enable [Shizuku](https://shizuku.rikka.app/)
-2. Launch Volume Manager and request Shizuku permission
-3. It should automatically enable its accessibility service
+1. Install and enable [Shizuku](https://shizuku.rikka.app/) **or** have a working root manager (`su`).
+2. Launch Volume Manager. Use the button in the top bar to choose Shizuku or Root. Grant the selected access request.
+3. In Shizuku mode, the app attempts to enable its accessibility service. In root mode, enable it manually in Android Accessibility settings to use the volume-button popup.
 4. You can change volume either from
    1. The main interface
    2. Press any volume button and a popup should appear, completely replace the default volume popup
    3. Enable accessibility button and click the button
+
+Root mode starts a temporary `app_process` Binder bridge from the installed APK. It does not remount or write to `/system`, `/vendor`, or other system partitions and does not install a persistent root module. The bridge stops when the app process dies or you switch back to Shizuku. App volume preferences and the accessibility setting remain normal Android user settings. Root compatibility depends on the device's `su` implementation and SELinux policy.
 
 ## Compare to [SoundMaster from ShizuTools](https://github.com/legendsayantan/ShizuTools/wiki/SoundMaster)
 

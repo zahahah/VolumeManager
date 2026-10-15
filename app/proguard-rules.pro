@@ -18,3 +18,6 @@
 -keepclassmembers class rikka.shizuku.Shizuku {
     static private rikka.shizuku.ShizukuRemoteProcess newProcess(java.lang.String[], java.lang.String[], java.lang.String);
 }
+
+# Started by app_process using its class name, outside Android's manifest entry points.
+-keep class moe.chensi.volume.RootBridge { *; }

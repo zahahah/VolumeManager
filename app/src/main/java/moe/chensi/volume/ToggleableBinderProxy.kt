@@ -49,7 +49,7 @@ class ToggleableBinderProxy(private val base: IBinder) : IBinder by base {
         }
     }
 
-    private val shizukuWrapper = ShizukuBinderWrapper(base)
+    private val shizukuWrapper by lazy { ShizukuBinderWrapper(base) }
 
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     override fun addFrozenStateChangeCallback(
@@ -67,6 +67,10 @@ class ToggleableBinderProxy(private val base: IBinder) : IBinder by base {
     override fun transact(
         code: Int, data: Parcel, reply: Parcel?, flags: Int
     ): Boolean {
-        return (if (enabled) shizukuWrapper else base).transact(code, data, reply, flags)
+        val target = if (!enabled) base else if (RootAccess.active) {
+            RootAccess.binderFor(base.interfaceDescriptor)
+                ?: throw IllegalStateException("Root bridge unavailable for ${base.interfaceDescriptor}")
+        } else shizukuWrapper
+        return target.transact(code, data, reply, flags)
     }
 }

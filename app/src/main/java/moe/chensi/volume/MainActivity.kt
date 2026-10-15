@@ -130,9 +130,17 @@ class MainActivity : ComponentActivity() {
 
     val powerManager by lazy { getSystemService(PowerManager::class.java)!! }
     var isIgnoringBatteryOptimization by mutableStateOf(false)
+    private var isAccessibilityEnabled by mutableStateOf(false)
     private fun checkBatteryOptimization() {
         isIgnoringBatteryOptimization =
             powerManager.isIgnoringBatteryOptimizations(applicationInfo.packageName)
+    }
+
+    private fun checkAccessibilityService() {
+        val serviceName = ComponentName(this, Service::class.java).flattenToString()
+        isAccessibilityEnabled = Settings.Secure.getString(
+            contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        )?.split(':')?.contains(serviceName) == true
     }
 
     @SuppressLint("DiscouragedPrivateApi")
@@ -148,6 +156,7 @@ class MainActivity : ComponentActivity() {
             CrashHandler.hasCrashReport() && CrashHandler.readCrashReport() != null
 
         checkBatteryOptimization()
+        checkAccessibilityService()
 
         setContent {
             var showAll by remember { mutableStateOf(false) }
@@ -195,7 +204,13 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(), topBar = {
                         TopAppBar(title = { Text("Volume Manager") }, actions = {
-                            if (manager.shizukuStatus == Manager.ShizukuStatus.Connected) {
+                            TextButton(onClick = {
+                                if (manager.accessMode == Manager.AccessMode.Root) manager.selectShizuku()
+                                else manager.connectRoot(this@MainActivity)
+                            }) {
+                                Text(if (manager.accessMode == Manager.AccessMode.Root) "Root" else "Shizuku")
+                            }
+                            if (manager.isConnected) {
                                 ToggleButton(
                                     checked = showAll,
                                     checkedIcon = Icons.Default.Check,
@@ -246,7 +261,23 @@ class MainActivity : ComponentActivity() {
                             .padding(innerPadding)
                             .padding(16.dp, 0.dp)
                     ) {
-                        when (manager.shizukuStatus) {
+                        if (manager.accessMode == Manager.AccessMode.Root) {
+                            if (manager.isConnected) {
+                                ConnectedContent(manager, showAll) { showAll = true }
+                            } else {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                                ) {
+                                    Text("Waiting for root access")
+                                    Text("Grant the su request to start the temporary root bridge.", textAlign = TextAlign.Center)
+                                    manager.rootError?.let { Text(it, textAlign = TextAlign.Center) }
+                                    Button(onClick = { manager.connectRoot(this@MainActivity) }) { Text("Retry root") }
+                                    TextButton(onClick = manager::selectShizuku) { Text("Use Shizuku") }
+                                }
+                            }
+                        } else when (manager.shizukuStatus) {
                             Manager.ShizukuStatus.Uninstalled -> {
                                 val context = LocalContext.current
                                 Column(
@@ -319,28 +350,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Manager.ShizukuStatus.Connected -> {
-                                ServiceStatus()
-
-                                AppVolumeList(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = 16.dp),
-                                    apps = manager.apps.values,
-                                    showEmpty = true,
-                                    showAll = showAll,
-                                    onShowAll = { showAll = true },
-                                    content = {
-                                        item("system_volume_panel_main") {
-                                            SystemVolumePanel(
-                                                audioManager = manager.audioManager,
-                                                notificationManagerProxy = manager.notificationManagerProxy,
-                                                showCallVolumeAlways = true,
-                                                applyVisibilityFilter = !showAll,
-                                                allowVisibilityConfig = showAll,
-                                                isSliderVisible = manager::isSystemSliderVisible,
-                                                onSliderVisibilityChange = manager::setSystemSliderVisible,
-                                            )
-                                        }
-                                    })
+                                ConnectedContent(manager, showAll) { showAll = true }
                             }
                         }
                     }
@@ -349,10 +359,36 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Composable
+    private fun ConnectedContent(manager: Manager, showAll: Boolean, onShowAll: () -> Unit) {
+        ServiceStatus()
+        AppVolumeList(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            apps = manager.apps.values,
+            showEmpty = true,
+            showAll = showAll,
+            onShowAll = onShowAll,
+            content = {
+                item("system_volume_panel_main") {
+                    SystemVolumePanel(
+                        audioManager = manager.audioManager,
+                        notificationManagerProxy = manager.notificationManagerProxy,
+                        showCallVolumeAlways = true,
+                        applyVisibilityFilter = !showAll,
+                        allowVisibilityConfig = showAll,
+                        isSliderVisible = manager::isSystemSliderVisible,
+                        onSliderVisibilityChange = manager::setSystemSliderVisible,
+                    )
+                }
+            })
+    }
+
     override fun onResume() {
         super.onResume()
 
         checkBatteryOptimization()
+        checkAccessibilityService()
     }
 
 
@@ -372,7 +408,8 @@ class MainActivity : ComponentActivity() {
     fun ServiceStatus() {
         var errorInfo by remember { mutableStateOf<ErrorInfo?>(null) }
 
-        LaunchedEffect(0) {
+        LaunchedEffect(application.manager.accessMode) {
+            if (application.manager.accessMode == Manager.AccessMode.Root) return@LaunchedEffect
             try {
                 grantSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS)
             } catch (e: Exception) {
@@ -415,6 +452,14 @@ class MainActivity : ComponentActivity() {
         }
 
         Log.i(TAG, "Manufacturer: ${Build.MANUFACTURER}")
+
+        if (application.manager.accessMode == Manager.AccessMode.Root) {
+            if (!isAccessibilityEnabled) {
+                Button(onClick = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
+                    Text("Enable accessibility service for volume buttons")
+                }
+            }
+        }
 
         if (!isIgnoringBatteryOptimization) {
             Button(onClick = { openBatterySettings() }) {
