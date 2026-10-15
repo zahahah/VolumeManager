@@ -1,7 +1,6 @@
 # Volume Manager
 
-[<img src="https://img.shields.io/f-droid/v/moe.chensi.volume?baseUrl=https://apt.izzysoft.de/fdroid&label=IzzyOnDroid" alt="IzzyOnDroid">](https://apt.izzysoft.de/fdroid/index/apk/moe.chensi.volume)
-[<img src="https://shields.rbtlog.dev/simple/moe.chensi.volume" alt="RB shield">](https://shields.rbtlog.dev/moe.chensi.volume)
+Fork of [yume-chan/VolumeManager](https://github.com/yume-chan/VolumeManager), with a standalone root mode and system-color theming.
 
 **Work in progress**
 
@@ -16,9 +15,9 @@ Requires Android 13.
 
 ## Download
 
-Latest development version can be downloaded from [action artifacts](https://github.com/yume-chan/VolumeManager/actions/workflows/build.yml?query=branch%3Amain).
+Latest development APKs can be downloaded from [this fork's build artifacts](https://github.com/zahahah/VolumeManager/actions/workflows/build.yml). The workflow uploads a debug APK and, when signing secrets are configured, a signed release APK.
 
-Some hand-picked versions can also be downloaded from [releases](https://github.com/yume-chan/VolumeManager/releases).
+This fork keeps the original package ID. A release signed with a different certificate cannot update an installation signed by the upstream certificate; uninstall the upstream app first if Android rejects the update.
 
 ## Usage
 
