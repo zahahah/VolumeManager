@@ -1,8 +1,6 @@
 package moe.chensi.volume
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.media.AudioManager
 import android.os.Binder
 import android.os.IBinder
@@ -59,10 +57,18 @@ internal class RootVolumeController(private val context: Context) {
     }
 
     private fun showPanel() {
-        val intent = Intent().setComponent(
-            ComponentName("moe.chensi.volume", "moe.chensi.volume.PopupActivity")
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        runCatching { context.startActivity(intent) }
-            .onFailure { Log.e(TAG, "Could not open the root volume panel", it) }
+        // An app_process started via su has no IApplicationThread, so ActivityTaskManager
+        // rejects Context.startActivity() with BAL_BLOCK. Hand off the start to Android's
+        // shell uid, which is permitted to launch this user-visible panel without requiring
+        // an AccessibilityService or changing persistent system settings.
+        runCatching {
+            val process = ProcessBuilder(
+                "/system/bin/su", "2000", "-c",
+                "am start --user 0 -f 0x30000000 -n moe.chensi.volume/.PopupActivity"
+            ).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+            check(process.waitFor() == 0) { "Activity launch failed: $output" }
+            Log.d(TAG, "Root volume panel launch requested: $output")
+        }.onFailure { Log.e(TAG, "Could not open the root volume panel", it) }
     }
 }
