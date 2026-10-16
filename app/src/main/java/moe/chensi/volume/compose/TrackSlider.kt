@@ -1,7 +1,8 @@
 package moe.chensi.volume.compose
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,9 +19,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 @Composable
 fun TrackSlider(
@@ -38,6 +41,7 @@ fun TrackSlider(
 ) {
     val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
     val latestValue by rememberUpdatedState(coercedValue)
+    val latestOnValueChange by rememberUpdatedState(onValueChange)
     val density = LocalDensity.current
     val cornerRadiusPx = with(density) { cornerRadius.toPx() }
 
@@ -55,23 +59,47 @@ fun TrackSlider(
                 )
             })
             .background(trackColor)
-            .pointerInput(enabled) {
+            .pointerInput(enabled, valueRange) {
                 if (enabled) {
-                    var startValue = 0f
-                    var startX = 0f
-
-                    detectHorizontalDragGestures(onDragStart = { offset ->
-                        startValue = latestValue
-                        startX = offset.x
-                    }) { change, _ ->
-                        val dragAmount = change.position.x - startX
-                        val changedPercentage = dragAmount / size.width.toFloat()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val startX = down.position.x
+                        val startValue = latestValue
                         val totalRange = valueRange.endInclusive - valueRange.start
-                        val newValue = (startValue + changedPercentage * totalRange)
-                        val coercedNewValue =
-                            newValue.coerceIn(valueRange.start, valueRange.endInclusive)
-                        if (coercedNewValue != latestValue) {
-                            onValueChange(coercedNewValue)
+                        var dragging = false
+                        var allowTap = true
+                        var change: PointerInputChange = down
+
+                        while (change.pressed) {
+                            val nextChange = awaitPointerEvent().changes
+                                .firstOrNull { it.id == down.id } ?: break
+                            val deltaX = nextChange.position.x - startX
+                            val deltaY = nextChange.position.y - down.position.y
+
+                            if (!dragging && nextChange.isConsumed) {
+                                allowTap = false
+                            }
+                            if (!dragging && abs(deltaX) > viewConfiguration.touchSlop &&
+                                abs(deltaX) >= abs(deltaY)
+                            ) {
+                                dragging = true
+                            } else if (!dragging && abs(deltaY) > viewConfiguration.touchSlop &&
+                                abs(deltaY) > abs(deltaX)
+                            ) {
+                                allowTap = false
+                            }
+
+                            if (dragging) {
+                                nextChange.consume()
+                                val newValue = startValue + deltaX / size.width * totalRange
+                                latestOnValueChange(newValue.coerceIn(valueRange.start, valueRange.endInclusive))
+                            }
+                            change = nextChange
+                        }
+
+                        if (!dragging && allowTap && size.width > 0) {
+                            val percentage = (startX / size.width).coerceIn(0f, 1f)
+                            latestOnValueChange(valueRange.start + percentage * totalRange)
                         }
                     }
                 }
