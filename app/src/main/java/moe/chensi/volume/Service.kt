@@ -194,7 +194,9 @@ class Service : AccessibilityService() {
                             AppVolumeList(
                                 apps = manager.apps.values,
                                 showAll = false,
-                                onChange = this@Service.handler::startIdleTimer
+                                onChange = this@Service.handler::startIdleTimer,
+                                outputDevices = manager.outputDevices,
+                                onOutputDeviceSelected = { app, device -> app.setOutputDevice(device) }
                             ) {
                                 item("system_volume_panel") {
                                     SystemVolumePanel(

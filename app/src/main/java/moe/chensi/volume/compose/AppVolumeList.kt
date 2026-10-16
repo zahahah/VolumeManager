@@ -1,5 +1,6 @@
 package moe.chensi.volume.compose
 
+import android.media.AudioDeviceInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +45,9 @@ fun LazyListScope.group(
     apps: List<App>,
     enableHide: Boolean = true,
     onChange: (() -> Unit)? = null,
-    onHeaderClick: (() -> Unit)? = null
+    onHeaderClick: (() -> Unit)? = null,
+    outputDevices: List<AudioDeviceInfo> = emptyList(),
+    onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null
 ) {
     if (apps.isNotEmpty()) {
         stickyHeader {
@@ -68,7 +71,9 @@ fun LazyListScope.group(
 
         items(
             items = apps.sortedWith(App.comparator), key = { app -> app.packageName }) { app ->
-            AppVolumeSlider(app, true, enableHide, onChange)
+            AppVolumeSlider(
+                app, true, enableHide, onChange, outputDevices, onOutputDeviceSelected
+            )
         }
     }
 }
@@ -82,6 +87,8 @@ fun AppVolumeList(
     showAll: Boolean,
     onChange: (() -> Unit)? = null,
     onShowAll: (() -> Unit)? = null,
+    outputDevices: List<AudioDeviceInfo> = emptyList(),
+    onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null,
     content: (LazyListScope.() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
@@ -148,7 +155,13 @@ fun AppVolumeList(
         if (!showAll) {
             if (activePlayers.isNotEmpty()) {
                 items(items = activePlayers, key = { app -> app.packageName }) { app ->
-                    AppVolumeSlider(app, showOptions = false, onChange = onChange)
+                    AppVolumeSlider(
+                        app,
+                        showOptions = false,
+                        onChange = onChange,
+                        outputDevices = outputDevices,
+                        onOutputDeviceSelected = onOutputDeviceSelected
+                    )
                 }
             } else if (showEmpty) {
                 item {
@@ -173,7 +186,15 @@ fun AppVolumeList(
         }
 
         groups.forEach { group ->
-            group({ group.name }, group.apps, enableHide = group.enableHide, onChange = onChange, onHeaderClick = { selectedGroup = group.name })
+            group(
+                { group.name },
+                group.apps,
+                enableHide = group.enableHide,
+                onChange = onChange,
+                onHeaderClick = { selectedGroup = group.name },
+                outputDevices = outputDevices,
+                onOutputDeviceSelected = onOutputDeviceSelected
+            )
         }
     }
 

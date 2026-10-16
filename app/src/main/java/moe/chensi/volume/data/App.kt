@@ -1,6 +1,7 @@
 package moe.chensi.volume.data
 
 import android.content.pm.PackageInfo
+import android.media.AudioDeviceInfo
 import android.icu.text.Collator
 import android.icu.text.Transliterator
 import android.util.Log
@@ -24,7 +25,8 @@ data class App(
     val packageInfo: PackageInfo,
     val name: String,
     private var preferences: AppPreferences,
-    private val savePreferences: () -> Unit
+    private val savePreferences: () -> Unit,
+    private val onOutputDeviceChanged: () -> Unit
 ) {
     companion object {
         val collator: Collator by lazy {
@@ -124,6 +126,8 @@ data class App(
         _volume = preferences.volume
         _hidden = preferences.hidden
         _disableVolumeButtons = preferences.disableVolumeButtons
+        _outputDeviceType = preferences.outputDeviceType
+        _outputDeviceAddress = preferences.outputDeviceAddress
     }
 
     private val _players: MutableList<AudioPlaybackConfigurationProxy> = mutableStateListOf()
@@ -227,4 +231,23 @@ data class App(
             preferences.disableVolumeButtons = value
             savePreferences()
         }
+
+    private var _outputDeviceType by mutableStateOf(preferences.outputDeviceType)
+    private var _outputDeviceAddress by mutableStateOf(preferences.outputDeviceAddress)
+
+    val outputDeviceType: Int? get() = _outputDeviceType
+    val outputDeviceAddress: String? get() = _outputDeviceAddress
+
+    fun setOutputDevice(device: AudioDeviceInfo?) {
+        val type = device?.type
+        val address = device?.address
+        if (type == _outputDeviceType && address == _outputDeviceAddress) return
+
+        _outputDeviceType = type
+        _outputDeviceAddress = address
+        preferences.outputDeviceType = type
+        preferences.outputDeviceAddress = address
+        savePreferences()
+        onOutputDeviceChanged()
+    }
 }

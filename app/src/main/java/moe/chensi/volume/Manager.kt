@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.AudioPlaybackConfiguration
 import android.os.Handler
@@ -67,6 +69,11 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     val notificationManagerProxy = NotificationManagerProxy(context)
 
     private val appPreferencesStore = AppPreferencesStore(dataStore)
+    private val outputRouter = AudioOutputRouter(context.applicationContext)
+    private var _outputDevices by mutableStateOf(
+        audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter(AudioDeviceInfo::isSink)
+    )
+    val outputDevices: List<AudioDeviceInfo> get() = _outputDevices
     private val _systemSliderVisibility = mutableStateMapOf<String, Boolean>()
     val systemSliderVisibility: Map<String, Boolean>
         get() = _systemSliderVisibility
@@ -95,7 +102,8 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
                     packageInfo,
                     packageManager.loadLabel(appInfo),
                     appPreferencesStore.getOrCreate(packageInfo.packageName),
-                    appPreferencesStore::save
+                    appPreferencesStore::save,
+                    ::onAppOutputDeviceChanged
                 )
             }
         }
@@ -129,6 +137,38 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
                 }
             }, null
         )
+
+        audioManager.registerAudioDeviceCallback(object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+                mainHandler.post { refreshOutputDevices() }
+            }
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                mainHandler.post { refreshOutputDevices() }
+            }
+        }, mainHandler)
+    }
+
+    @EnableBinderProxy
+    private fun refreshOutputDevices() {
+        _outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .filter(AudioDeviceInfo::isSink)
+        applyOutputRouting()
+    }
+
+    private fun onAppOutputDeviceChanged() {
+        applyOutputRouting()
+    }
+
+    @EnableBinderProxy
+    private fun clearOutputRouting() {
+        outputRouter.unregister()
+    }
+
+    @EnableBinderProxy
+    private fun applyOutputRouting() {
+        if (!isConnected) return
+        outputRouter.update(apps.values, outputDevices)
     }
 
     @SuppressLint("DiscouragedPrivateApi")
@@ -168,7 +208,10 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
             mainHandler.post {
                 rootConnected = true
                 rootError = null
-                if (accessMode == AccessMode.Root) start()
+                if (accessMode == AccessMode.Root) {
+                    start()
+                    applyOutputRouting()
+                }
             }
         }
         RootAccess.onDisconnected = {
@@ -186,7 +229,10 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
 
             if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                 _shizukuStatus = ShizukuStatus.Connected
-                if (accessMode == AccessMode.Shizuku) start()
+                if (accessMode == AccessMode.Shizuku) {
+                    start()
+                    applyOutputRouting()
+                }
             } else {
                 _shizukuStatus = ShizukuStatus.PermissionDenied
             }
@@ -199,7 +245,10 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         Shizuku.addRequestPermissionResultListener { _, grantResult ->
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
                 _shizukuStatus = ShizukuStatus.Connected
-                if (accessMode == AccessMode.Shizuku) start()
+                if (accessMode == AccessMode.Shizuku) {
+                    start()
+                    applyOutputRouting()
+                }
             }
         }
 
@@ -223,16 +272,21 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
             if (first) {
                 initialize()
             }
+            applyOutputRouting()
         }
     }
 
     fun selectShizuku() {
+        if (accessMode == AccessMode.Root && rootConnected) clearOutputRouting()
         accessMode = AccessMode.Shizuku
         RootAccess.active = false
         RootAccess.disconnect()
         rootConnected = false
         settings.edit().putString("mode", "shizuku").apply()
-        if (shizukuStatus == ShizukuStatus.Connected) start()
+        if (shizukuStatus == ShizukuStatus.Connected) {
+            start()
+            applyOutputRouting()
+        }
     }
 
     fun updateStartAtBoot(enabled: Boolean) {
@@ -241,6 +295,9 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     }
 
     fun connectRoot(context: Context) {
+        if (accessMode == AccessMode.Shizuku && shizukuStatus == ShizukuStatus.Connected) {
+            clearOutputRouting()
+        }
         accessMode = AccessMode.Root
         RootAccess.active = true
         rootConnected = RootAccess.connected

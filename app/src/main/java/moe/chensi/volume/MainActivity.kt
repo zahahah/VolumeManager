@@ -383,6 +383,8 @@ class MainActivity : ComponentActivity() {
             showEmpty = true,
             showAll = showAll,
             onShowAll = onShowAll,
+            outputDevices = manager.outputDevices,
+            onOutputDeviceSelected = { app, device -> app.setOutputDevice(device) },
             content = {
                 item("system_volume_panel_main") {
                     SystemVolumePanel(

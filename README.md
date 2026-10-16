@@ -41,13 +41,15 @@ SoundMaster uses MediaProjection API to record audio from each app and apply pos
 | ------------------------------ | --------------- | --------------- |
 | Minimal Android version        | 13              | 10              |
 | Control volume of each app     | ✅              | ✅              |
-| Set output device for each app | ❌ <sup>1</sup> | ✅              |
+| Set output device for each app | ✅              | ✅              |
 | Change left-right balance      | ❌ <sup>2</sup> | ✅              |
 | Equalizer (EQ)                 | ❌              | ✅              |
 | Control protected apps         | ✅              | ❌ <sup>3</sup> |
 | Zero latency added             | ✅              | ❌              |
 
-<sup>1</sup>: There are APIs to do that, but not implemented in this app
+Per-app output routing uses Android's hidden audio-policy APIs and requires Root or Shizuku access.
+Available outputs and support can vary by Android version and device manufacturer. Choosing
+“System default” removes the app-specific route.
 
 <sup>2</sup>: There are other APIs to do that, but not implemented in this app
 
