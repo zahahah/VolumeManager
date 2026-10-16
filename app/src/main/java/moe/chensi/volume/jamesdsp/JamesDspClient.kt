@@ -3,6 +3,7 @@ package moe.chensi.volume.jamesdsp
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 
 data class JamesDspState(
     val packageName: String,
@@ -32,11 +33,20 @@ class JamesDspClient(context: Context) {
     }
 
     private val appContext = context.applicationContext
+    var lastError: String? = null
+        private set
 
     fun getState(): JamesDspState? {
+        lastError = null
         for (packageName in APP_PACKAGES) {
             if (!isInstalled(packageName)) continue
-            val result = runCatching { call(packageName, METHOD_GET_STATE, null) }.getOrNull() ?: continue
+            val result = try {
+                call(packageName, METHOD_GET_STATE, null)
+            } catch (error: Exception) {
+                Log.w("JamesDspClient", "Integration call to $packageName failed", error)
+                lastError = "$packageName: ${error.javaClass.simpleName}: ${error.message.orEmpty()}"
+                continue
+            }
             val effects = EFFECT_IDS.associateWith { result.getBoolean("effect_$it", false) }
             return JamesDspState(
                 packageName = packageName,

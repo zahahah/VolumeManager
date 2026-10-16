@@ -106,7 +106,8 @@ fun JamesDspControls(
             val current = state
             if (current == null) {
                 Text(
-                    text = if (loadFinished) "JamesDSP not detected or integration API unavailable"
+                    text = if (loadFinished) client.lastError
+                        ?: "JamesDSP not detected or integration API unavailable"
                     else "Connecting to JamesDSP…",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
