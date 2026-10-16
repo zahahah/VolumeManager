@@ -117,9 +117,18 @@ fun AppVolumeSlider(
                             { Text("✓") }
                         } else null
                     )
+                    val outputNameCounts = outputDevices.groupingBy {
+                        it.productName.toString().takeUnless(String::isBlank) ?: "Audio output"
+                    }.eachCount()
                     outputDevices.forEach { device ->
-                        val deviceName = device.productName.toString()
-                            .takeUnless(String::isBlank) ?: "Audio device ${device.type}"
+                        val productName = device.productName.toString()
+                            .takeUnless(String::isBlank) ?: "Audio output"
+                        val duplicateName = (outputNameCounts[productName] ?: 0) > 1
+                        val deviceName = if (duplicateName) {
+                            "$productName · ${deviceTypeLabel(device.type)} (port ${device.id})"
+                        } else {
+                            productName
+                        }
                         DropdownMenuItem(
                             text = { Text(deviceName) },
                             onClick = {
@@ -162,4 +171,20 @@ fun AppVolumeSlider(
             }
         }
     }
+}
+
+private fun deviceTypeLabel(type: Int): String = when (type) {
+    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Earpiece"
+    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Speaker"
+    AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired headset"
+    AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired headphones"
+    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth call audio"
+    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth media audio"
+    AudioDeviceInfo.TYPE_HDMI, AudioDeviceInfo.TYPE_HDMI_ARC -> "HDMI"
+    AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB audio"
+    AudioDeviceInfo.TYPE_USB_HEADSET -> "USB headset"
+    AudioDeviceInfo.TYPE_HEARING_AID -> "Hearing aid"
+    AudioDeviceInfo.TYPE_BLE_HEADSET -> "Bluetooth LE headset"
+    AudioDeviceInfo.TYPE_BLE_SPEAKER -> "Bluetooth LE speaker"
+    else -> "Output type $type"
 }

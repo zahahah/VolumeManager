@@ -384,7 +384,12 @@ class MainActivity : ComponentActivity() {
             showAll = showAll,
             onShowAll = onShowAll,
             outputDevices = manager.outputDevices,
-            onOutputDeviceSelected = { app, device -> app.setOutputDevice(device) },
+            onOutputDeviceSelected = { app, device ->
+                app.setOutputDevice(device)
+                manager.outputRoutingError?.let { error ->
+                    Toast.makeText(this@MainActivity, "Could not route audio: $error", Toast.LENGTH_LONG).show()
+                }
+            },
             content = {
                 item("system_volume_panel_main") {
                     SystemVolumePanel(

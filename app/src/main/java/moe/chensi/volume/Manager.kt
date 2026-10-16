@@ -71,9 +71,13 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     private val appPreferencesStore = AppPreferencesStore(dataStore)
     private val outputRouter = AudioOutputRouter(context.applicationContext)
     private var _outputDevices by mutableStateOf(
-        audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter(AudioDeviceInfo::isSink)
+        audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .filter(AudioDeviceInfo::isSink)
+            .distinctBy { it.type to it.address }
     )
     val outputDevices: List<AudioDeviceInfo> get() = _outputDevices
+    private var _outputRoutingError by mutableStateOf<String?>(null)
+    val outputRoutingError: String? get() = _outputRoutingError
     private val _systemSliderVisibility = mutableStateMapOf<String, Boolean>()
     val systemSliderVisibility: Map<String, Boolean>
         get() = _systemSliderVisibility
@@ -153,6 +157,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     private fun refreshOutputDevices() {
         _outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             .filter(AudioDeviceInfo::isSink)
+            .distinctBy { it.type to it.address }
         applyOutputRouting()
     }
 
@@ -169,6 +174,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     private fun applyOutputRouting() {
         if (!isConnected) return
         outputRouter.update(apps.values, outputDevices)
+        _outputRoutingError = outputRouter.lastError
     }
 
     @SuppressLint("DiscouragedPrivateApi")

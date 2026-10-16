@@ -19,27 +19,46 @@ internal class AudioOutputRouter(
     }
 
     private var policy: Any? = null
+    private var policyUids: Set<Int> = emptySet()
+    var lastError: String? = null
+        private set
 
     @SuppressLint("PrivateApi")
     fun update(apps: Collection<App>, devices: List<AudioDeviceInfo>) {
-        val byAddress = devices.associateBy { it.type to it.address }
-        val groups = apps.asSequence()
-            .filter { it.outputDeviceType != null }
+        val byAddress = devices.distinctBy { it.type to it.address }
+            .associateBy { it.type to it.address }
+        val selectedByUid = apps.asSequence()
             .mapNotNull { app ->
                 val type = app.outputDeviceType ?: return@mapNotNull null
                 val address = app.outputDeviceAddress ?: ""
                 val device = byAddress[type to address] ?: return@mapNotNull null
-                device to app.applicationInfo.uid
+                app.applicationInfo.uid to device
             }
             .groupBy({ it.first }, { it.second })
+            .mapNotNull { (uid, selectedDevices) ->
+                val uniqueDevices = selectedDevices.distinctBy { it.type to it.address }
+                if (uniqueDevices.size == 1) uid to uniqueDevices.single() else null
+            }
+            .toMap()
+        val groups = selectedByUid.entries.groupBy(
+            { it.value.type to it.value.address },
+            { it.key to it.value }
+        )
 
         if (groups.isEmpty()) {
             unregister()
+            lastError = null
             return
         }
 
+        // UID device affinities belong to a registered policy. Remove the prior policy and its
+        // affinities before registering the replacement so the old policy cannot undo new routes.
+        unregister()
         try {
-            val mixes = groups.map { (device, uids) -> buildMix(device, uids.distinct()) }
+            val mixes = groups.values.map { uidDevices ->
+                val device = uidDevices.first().second
+                buildMix(device, uidDevices.map { it.first }.distinct())
+            }
             val builder = Reflect.onClass("android.media.audiopolicy.AudioPolicy\$Builder")
                 .create(context)
             mixes.forEach { builder.call("addMix", it) }
@@ -51,19 +70,36 @@ internal class AudioOutputRouter(
                 .call("registerAudioPolicyStatic", newPolicy).get<Int>()
             check(result == 0) { "Audio policy registration failed ($result)" }
 
-            val previous = policy
             policy = newPolicy
-            previous?.let(::unregisterPolicy)
+            selectedByUid.forEach { (uid, device) ->
+                val routed = Reflect.on(newPolicy)
+                    .call("setUidDeviceAffinity", uid, listOf(device)).get<Boolean>()
+                check(routed) { "Android rejected the output route for app UID $uid" }
+                policyUids = policyUids + uid
+            }
+            lastError = null
         } catch (error: Exception) {
             Log.e(TAG, "Could not apply per-app output routing", error)
             unregister()
+            lastError = error.cause?.message ?: error.message ?: "Audio routing is unavailable"
         }
     }
 
     @SuppressLint("PrivateApi")
     fun unregister() {
-        policy?.let(::unregisterPolicy)
+        policy?.let { current ->
+            policyUids.forEach { uid ->
+                runCatching {
+                    val removed = Reflect.on(current)
+                        .call("removeUidDeviceAffinity", uid).get<Boolean>()
+                    if (!removed) Log.w(TAG, "System did not clear output affinity for UID $uid")
+                }
+                    .onFailure { Log.w(TAG, "Could not clear output affinity for UID $uid", it) }
+            }
+            unregisterPolicy(current)
+        }
         policy = null
+        policyUids = emptySet()
     }
 
     private fun buildMix(device: AudioDeviceInfo, uids: List<Int>): Any {
