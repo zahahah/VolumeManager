@@ -82,27 +82,6 @@ fun SystemVolumePanel(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (!applyVisibilityFilter || isSliderVisible(SystemSliderIds.Call)) {
-            if (!showCallVolumeAlways && inCallMode || showCallVolumeAlways) {
-                StreamVolumeSlider(
-                    streamType = AudioManager.STREAM_VOICE_CALL,
-                    icon = Icons.Default.PhoneInTalk,
-                    name = stringResource(R.string.stream_call),
-                    audioManager = audioManager,
-                    footer = {
-                        SliderVisibilityFooter(
-                            sliderId = SystemSliderIds.Call,
-                            sliderName = stringResource(R.string.stream_call),
-                            allowVisibilityConfig = allowVisibilityConfig,
-                            isVisible = isSliderVisible(SystemSliderIds.Call),
-                            onSliderVisibilityChange = onSliderVisibilityChange
-                        )
-                    },
-                    onChange = onChange
-                )
-            }
-        }
-
         beforeMedia()
 
         if (!applyVisibilityFilter || isSliderVisible(SystemSliderIds.Media)) {
@@ -122,6 +101,27 @@ fun SystemVolumePanel(
                 },
                 onChange = onChange
             )
+        }
+
+        if (!applyVisibilityFilter || isSliderVisible(SystemSliderIds.Call)) {
+            if (!showCallVolumeAlways && inCallMode || showCallVolumeAlways) {
+                StreamVolumeSlider(
+                    streamType = AudioManager.STREAM_VOICE_CALL,
+                    icon = Icons.Default.PhoneInTalk,
+                    name = stringResource(R.string.stream_call),
+                    audioManager = audioManager,
+                    footer = {
+                        SliderVisibilityFooter(
+                            sliderId = SystemSliderIds.Call,
+                            sliderName = stringResource(R.string.stream_call),
+                            allowVisibilityConfig = allowVisibilityConfig,
+                            isVisible = isSliderVisible(SystemSliderIds.Call),
+                            onSliderVisibilityChange = onSliderVisibilityChange
+                        )
+                    },
+                    onChange = onChange
+                )
+            }
         }
 
         if (!applyVisibilityFilter || isSliderVisible(SystemSliderIds.Ring)) {
