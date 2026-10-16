@@ -6,7 +6,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -50,17 +49,8 @@ class PopupActivity : ComponentActivity() {
                             apps = manager.apps.values,
                             showAll = false,
                             onChange = ::restartDismissTimer,
-                            outputDevices = manager.outputDevices,
-                            onOutputDeviceSelected = { app, device ->
-                                app.setOutputDevice(device)
-                                manager.outputRoutingError?.let { error ->
-                                    Toast.makeText(
-                                        this@PopupActivity,
-                                        "Could not route audio: $error",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
+                            onOutputDeviceSelected = null,
+                            masterVolumeScale = manager.masterVolumeScale
                         ) {
                             item("system_volume_panel") {
                                 SystemVolumePanel(

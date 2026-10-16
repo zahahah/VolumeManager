@@ -45,8 +45,8 @@ android {
         applicationId = "moe.chensi.volume"
         minSdk = 33
         targetSdk = 35
-        versionCode = 28
-        versionName = "0.3-beta-24"
+        versionCode = 31
+        versionName = "0.3-beta-27"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

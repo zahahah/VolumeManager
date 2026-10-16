@@ -47,7 +47,8 @@ fun LazyListScope.group(
     onChange: (() -> Unit)? = null,
     onHeaderClick: (() -> Unit)? = null,
     outputDevices: List<AudioDeviceInfo> = emptyList(),
-    onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null
+    onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null,
+    masterVolumeScale: Float = 1f
 ) {
     if (apps.isNotEmpty()) {
         stickyHeader {
@@ -70,9 +71,11 @@ fun LazyListScope.group(
         }
 
         items(
-            items = apps.sortedWith(App.comparator), key = { app -> app.packageName }) { app ->
+            items = apps.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.sortName }),
+            key = { app -> app.packageName }) { app ->
             AppVolumeSlider(
-                app, true, enableHide, onChange, outputDevices, onOutputDeviceSelected
+                app, true, enableHide, onChange, outputDevices, onOutputDeviceSelected,
+                masterVolumeScale
             )
         }
     }
@@ -89,6 +92,7 @@ fun AppVolumeList(
     onShowAll: (() -> Unit)? = null,
     outputDevices: List<AudioDeviceInfo> = emptyList(),
     onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null,
+    masterVolumeScale: Float = 1f,
     content: (LazyListScope.() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
@@ -160,7 +164,8 @@ fun AppVolumeList(
                         showOptions = false,
                         onChange = onChange,
                         outputDevices = outputDevices,
-                        onOutputDeviceSelected = onOutputDeviceSelected
+                        onOutputDeviceSelected = onOutputDeviceSelected,
+                        masterVolumeScale = masterVolumeScale
                     )
                 }
             } else if (showEmpty) {
@@ -193,7 +198,8 @@ fun AppVolumeList(
                 onChange = onChange,
                 onHeaderClick = { selectedGroup = group.name },
                 outputDevices = outputDevices,
-                onOutputDeviceSelected = onOutputDeviceSelected
+                onOutputDeviceSelected = onOutputDeviceSelected,
+                masterVolumeScale = masterVolumeScale
             )
         }
     }

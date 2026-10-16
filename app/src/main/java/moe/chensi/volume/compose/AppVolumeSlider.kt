@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import moe.chensi.volume.data.App
+import moe.chensi.volume.data.cappedAppVolumePercent
 import moe.chensi.volume.icons.Hook
 import moe.chensi.volume.icons.HookOff
 import moe.chensi.volume.ui.theme.Typography
@@ -43,7 +44,8 @@ fun AppVolumeSlider(
     enableHide: Boolean = true,
     onChange: (() -> Unit)? = null,
     outputDevices: List<AudioDeviceInfo> = emptyList(),
-    onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null
+    onOutputDeviceSelected: ((App, AudioDeviceInfo?) -> Unit)? = null,
+    masterVolumeScale: Float = 1f
 ) {
     var showOutputMenu by remember(app.packageName) { mutableStateOf(false) }
     Row(
@@ -86,7 +88,7 @@ fun AppVolumeSlider(
                 )
 
                 Text(
-                    text = "${(app.volume * 100).roundToInt()}/100",
+                    text = "${cappedAppVolumePercent(app.volume, masterVolumeScale)}/${(masterVolumeScale.coerceIn(0f, 1f) * 100).roundToInt()}",
                     style = Typography.bodySmall,
                     maxLines = 1,
                 )

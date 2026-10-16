@@ -2,7 +2,10 @@ package moe.chensi.volume
 
 import android.annotation.SuppressLint
 import android.app.ActivityManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -17,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import moe.chensi.volume.data.App
+import moe.chensi.volume.data.normalizeMasterVolume
 import moe.chensi.volume.data.AppPreferencesStore
 import moe.chensi.volume.system.AudioPlaybackConfigurationProxy
 import moe.chensi.volume.system.NotificationManagerProxy
@@ -29,6 +33,9 @@ import rikka.shizuku.ShizukuProvider
 class Manager(context: Context, dataStore: DataStore<Preferences>) {
     companion object {
         const val SHIZUKU_PACKAGE_NAME = "moe.shizuku.privileged.api"
+
+        // Per-app output routing is deferred until the AudioPolicy lifecycle is stable.
+        const val OUTPUT_ROUTING_ENABLED = false
     }
 
     enum class ShizukuStatus {
@@ -37,6 +44,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
 
     enum class AccessMode { Shizuku, Root }
 
+    private val appContext = context.applicationContext
     private val settings = context.getSharedPreferences("access", Context.MODE_PRIVATE)
     var accessMode by mutableStateOf(
         if (settings.getString("mode", "shizuku") == "root") AccessMode.Root else AccessMode.Shizuku
@@ -49,6 +57,10 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     private var rootConnected by mutableStateOf(false)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var started = false
+    private var volumeReceiverRegistered = false
+    var masterVolumeScale by mutableStateOf(1f)
+        private set
+    private var allAppsLoaded = false
     val isConnected: Boolean
         get() = if (accessMode == AccessMode.Root) rootConnected else shizukuStatus == ShizukuStatus.Connected
 
@@ -97,36 +109,45 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
 
     val apps = mutableStateMapOf<String, App>()
 
-    private fun reloadApps() {
-        for (packageInfo in packageManager.getInstalledPackagesForAllUsers()) {
-            val appInfo = packageInfo.applicationInfo ?: continue
-            if (!apps.containsKey(packageInfo.packageName)) {
-                apps[packageInfo.packageName] = App(
-                    packageManager,
-                    packageInfo,
-                    packageManager.loadLabel(appInfo),
-                    appPreferencesStore.getOrCreate(packageInfo.packageName),
-                    appPreferencesStore::save,
-                    ::onAppOutputDeviceChanged
-                )
-            }
+    private fun addApp(packageInfo: android.content.pm.PackageInfo): App? {
+        val appInfo = packageInfo.applicationInfo ?: return null
+        return apps.getOrPut(packageInfo.packageName) {
+            App(
+                packageManager,
+                packageInfo,
+                { packageManager.loadLabel(appInfo) },
+                appPreferencesStore.getOrCreate(packageInfo.packageName),
+                appPreferencesStore::save,
+                ::onAppOutputDeviceChanged
+            )
         }
     }
 
     private fun getApp(packageName: String): App? {
-        val app = apps[packageName]
-        if (app != null) {
-            return app
-        }
+        return apps[packageName] ?: packageManager.getPackageInfo(packageName)?.let(::addApp)
+    }
 
-        // Maybe just installed?
-        reloadApps()
-        return apps[packageName]
+    fun loadAllApps() {
+        if (allAppsLoaded) return
+        packageManager.getInstalledPackagesForAllUsers().forEach(::addApp)
+        allAppsLoaded = true
     }
 
     @EnableBinderProxy
     private fun initialize() {
-        reloadApps()
+        updateAppsForMasterVolume()
+        if (!volumeReceiverRegistered) {
+            appContext.registerReceiver(
+                object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        updateAppsForMasterVolume()
+                    }
+                },
+                IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
+                Context.RECEIVER_EXPORTED
+            )
+            volumeReceiverRegistered = true
+        }
 
         val playbackConfigurations = audioManager.activePlaybackConfigurations
         processAudioPlaybackConfigurations(playbackConfigurations)
@@ -153,6 +174,13 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         }, mainHandler)
     }
 
+    private fun updateAppsForMasterVolume() {
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val masterVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val scale = normalizeMasterVolume(masterVolume, maxVolume)
+        masterVolumeScale = scale
+    }
+
     @EnableBinderProxy
     private fun refreshOutputDevices() {
         _outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
@@ -172,7 +200,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
 
     @EnableBinderProxy
     private fun applyOutputRouting() {
-        if (!isConnected) return
+        if (!OUTPUT_ROUTING_ENABLED || !isConnected) return
         outputRouter.update(apps.values, outputDevices)
         _outputRoutingError = outputRouter.lastError
     }
@@ -268,7 +296,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
             for ((packageName, index) in appPreferencesStore.indices) {
                 if (!first) {
                     // Replace with new reference
-                    getApp(packageName)?.setPreferences(appPreferencesStore.values[index])
+                    apps[packageName]?.setPreferences(appPreferencesStore.values[index])
                 }
             }
 
@@ -289,6 +317,7 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         RootAccess.disconnect()
         rootConnected = false
         settings.edit().putString("mode", "shizuku").apply()
+        RootKeepAliveService.stop(appContext)
         if (shizukuStatus == ShizukuStatus.Connected) {
             start()
             applyOutputRouting()
@@ -298,6 +327,11 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     fun updateStartAtBoot(enabled: Boolean) {
         startAtBoot = enabled
         settings.edit().putBoolean("start_at_boot", enabled).apply()
+        if (enabled && accessMode == AccessMode.Root) {
+            RootKeepAliveService.start(appContext)
+        } else {
+            RootKeepAliveService.stop(appContext)
+        }
     }
 
     fun connectRoot(context: Context) {
@@ -309,6 +343,9 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         rootConnected = RootAccess.connected
         rootError = null
         settings.edit().putString("mode", "root").apply()
+        if (startAtBoot && context !is RootKeepAliveService) {
+            RootKeepAliveService.start(appContext)
+        }
         RootAccess.connect(context) { message ->
             mainHandler.post { if (accessMode == AccessMode.Root) rootError = message }
         }

@@ -23,7 +23,7 @@ import java.util.Locale
 data class App(
     val packageManager: PackageManagerProxy,
     val packageInfo: PackageInfo,
-    val name: String,
+    private val loadName: () -> String,
     private var preferences: AppPreferences,
     private val savePreferences: () -> Unit,
     private val onOutputDeviceChanged: () -> Unit
@@ -94,6 +94,13 @@ data class App(
 
     val packageName: String
         get() = packageInfo.packageName
+
+    val name: String by lazy(loadName)
+
+    // Sorting every installed package by its localized label opens every APK's resources.
+    // A resource-free key keeps the full list cheap until an app row is actually visible.
+    val sortName: String
+        get() = applicationInfo.nonLocalizedLabel?.toString() ?: packageName
 
     val hasAnyActivity: Boolean
         get() = packageInfo.activities?.isNotEmpty() == true

@@ -15,8 +15,6 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
     companion object {
         private const val TAG = "VolumeManager.RootRouting"
         private const val DESCRIPTOR = "moe.chensi.volume.IRootAudioRouting"
-        private const val ROUTE_FLAG_RENDER = 1
-        private const val RULE_MATCH_UID = 4
     }
 
     private var policy: Any? = null
@@ -68,7 +66,7 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
             val mixes = resolved.groupBy({ it.second.type to it.second.address }, { it })
                 .values.map { uidDevices ->
                     val device = uidDevices.first().second
-                    buildMix(device, uidDevices.map { it.first }.distinct())
+                    AudioOutputMixFactory.build(device)
                 }
             val builder = Reflect.onClass("android.media.audiopolicy.AudioPolicy\$Builder")
                 .create(context)
@@ -93,18 +91,6 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
             unregisterCurrent()
             describe(error)
         }
-    }
-
-    private fun buildMix(device: AudioDeviceInfo, uids: List<Int>): Any {
-        val ruleBuilder = Reflect.onClass("android.media.audiopolicy.AudioMixingRule\$Builder").create()
-        uids.forEach { uid -> ruleBuilder.call("addMixRule", RULE_MATCH_UID, uid) }
-        val rule = ruleBuilder.call("build").get<Any>()
-
-        val mixBuilder = Reflect.onClass("android.media.audiopolicy.AudioMix\$Builder").create()
-        mixBuilder.call("setMixingRule", rule)
-        mixBuilder.call("setRouteFlags", ROUTE_FLAG_RENDER)
-        mixBuilder.call("setDevice", device)
-        return mixBuilder.call("build").get<Any>()
     }
 
     private fun unregisterCurrent() {

@@ -23,13 +23,13 @@ This fork keeps the original package ID. A release signed with a different certi
 
 1. Install and enable [Shizuku](https://shizuku.rikka.app/) **or** have a working root manager (`su`).
 2. Launch Volume Manager. Use the button in the top bar to choose Shizuku or Root. Grant the selected access request.
-3. In Shizuku mode, the app attempts to enable its accessibility service. In root mode, enable it manually in Android Accessibility settings to use the volume-button popup.
+3. In Shizuku mode, the app attempts to enable its accessibility service. Root mode handles the volume-button popup without accessibility.
 4. You can change volume either from
    1. The main interface
    2. Press any volume button and a popup should appear, completely replace the default volume popup
    3. Enable accessibility button and click the button
 
-Root mode starts a temporary `app_process` Binder bridge from the installed APK. It does not remount or write to `/system`, `/vendor`, or other system partitions and does not install a persistent root module. The bridge stops when the app process dies or you switch back to Shizuku. App volume preferences and the accessibility setting remain normal Android user settings. Root compatibility depends on the device's `su` implementation and SELinux policy.
+Root mode starts a temporary `app_process` Binder bridge from the installed APK. It does not remount or write to `/system`, `/vendor`, or other system partitions and does not install a persistent root module. In Settings, **Start Root mode after boot** keeps the opted-in session alive with a foreground-service notification and reconnects after the user unlocks Android. Turning the option off or switching to Shizuku stops that service; the bridge also stops if the app process dies. App volume preferences remain normal Android user settings. Root compatibility depends on the device's `su` implementation and SELinux policy.
 
 ## Compare to [SoundMaster from ShizuTools](https://github.com/legendsayantan/ShizuTools/wiki/SoundMaster)
 
@@ -41,15 +41,14 @@ SoundMaster uses MediaProjection API to record audio from each app and apply pos
 | ------------------------------ | --------------- | --------------- |
 | Minimal Android version        | 13              | 10              |
 | Control volume of each app     | ✅              | ✅              |
-| Set output device for each app | ✅              | ✅              |
+| Set output device for each app | ⏸️ Temporarily disabled | ✅              |
 | Change left-right balance      | ❌ <sup>2</sup> | ✅              |
 | Equalizer (EQ)                 | ❌              | ✅              |
 | Control protected apps         | ✅              | ❌ <sup>3</sup> |
 | Zero latency added             | ✅              | ❌              |
 
-Per-app output routing uses Android's hidden audio-policy APIs and requires Root or Shizuku access.
-Available outputs and support can vary by Android version and device manufacturer. Choosing
-“System default” removes the app-specific route.
+Per-app output routing is temporarily disabled while its Android audio-policy lifecycle is fixed.
+Saved selections are preserved, but no output-device menu or routing policy is applied in this build.
 
 <sup>2</sup>: There are other APIs to do that, but not implemented in this app
 

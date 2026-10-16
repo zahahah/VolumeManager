@@ -46,6 +46,13 @@ class PackageManagerProxy private constructor(context: Context) {
     }
 
     @EnableBinderProxy
+    fun getPackageInfo(packageName: String): PackageInfo? = try {
+        packageManager.getPackageInfo(packageName, MATCH_ANY_USER or PackageManager.GET_ACTIVITIES)
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    }
+
+    @EnableBinderProxy
     fun getDrawable(packageName: String, resId: Int, appInfo: ApplicationInfo): Drawable? {
         return packageManager.getDrawable(packageName, resId, appInfo)
     }

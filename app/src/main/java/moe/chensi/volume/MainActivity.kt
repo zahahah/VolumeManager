@@ -375,6 +375,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun ConnectedContent(manager: Manager, showAll: Boolean, onShowAll: () -> Unit) {
+        LaunchedEffect(showAll) {
+            if (showAll) manager.loadAllApps()
+        }
         ServiceStatus()
         AppVolumeList(
             modifier = Modifier.fillMaxSize(),
@@ -383,13 +386,8 @@ class MainActivity : ComponentActivity() {
             showEmpty = true,
             showAll = showAll,
             onShowAll = onShowAll,
-            outputDevices = manager.outputDevices,
-            onOutputDeviceSelected = { app, device ->
-                app.setOutputDevice(device)
-                manager.outputRoutingError?.let { error ->
-                    Toast.makeText(this@MainActivity, "Could not route audio: $error", Toast.LENGTH_LONG).show()
-                }
-            },
+            onOutputDeviceSelected = null,
+            masterVolumeScale = manager.masterVolumeScale,
             content = {
                 item("system_volume_panel_main") {
                     SystemVolumePanel(

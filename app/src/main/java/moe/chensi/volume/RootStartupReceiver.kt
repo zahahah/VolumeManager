@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 
-/** Reconnects the opted-in, systemless root bridge after the user unlocks the device. */
+/** Starts the opted-in root session after credential-encrypted settings become available. */
 class RootStartupReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
@@ -16,9 +16,7 @@ class RootStartupReceiver : BroadcastReceiver() {
         ) return
 
         Log.i(TAG, "Starting opted-in root mode after boot")
-        // Manager reconnects the transient app_process bridge; it does not mount or
-        // write anything to system/vendor/product partitions.
-        (context.applicationContext as MyApplication).manager
+        RootKeepAliveService.start(context)
     }
 
     private companion object {

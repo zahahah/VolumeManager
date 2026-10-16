@@ -189,17 +189,8 @@ class Service : AccessibilityService() {
                                 apps = manager.apps.values,
                                 showAll = false,
                                 onChange = this@Service.handler::startIdleTimer,
-                                outputDevices = manager.outputDevices,
-                                onOutputDeviceSelected = { app, device ->
-                                    app.setOutputDevice(device)
-                                    manager.outputRoutingError?.let { error ->
-                                        Toast.makeText(
-                                            this@Service,
-                                            "Could not route audio: $error",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
+                                onOutputDeviceSelected = null,
+                                masterVolumeScale = manager.masterVolumeScale
                             ) {
                                 item("system_volume_panel") {
                                     SystemVolumePanel(

@@ -14,8 +14,6 @@ internal class AudioOutputRouter(
 ) {
     companion object {
         private const val TAG = "VolumeManager.Routing"
-        private const val ROUTE_FLAG_RENDER = 1
-        private const val RULE_MATCH_UID = 4
     }
 
     private var policy: Any? = null
@@ -70,7 +68,7 @@ internal class AudioOutputRouter(
         try {
             val mixes = groups.values.map { uidDevices ->
                 val device = uidDevices.first().second
-                buildMix(device, uidDevices.map { it.first }.distinct())
+                AudioOutputMixFactory.build(device)
             }
             val builder = Reflect.onClass("android.media.audiopolicy.AudioPolicy\$Builder")
                 .create(context)
@@ -94,7 +92,9 @@ internal class AudioOutputRouter(
         } catch (error: Exception) {
             Log.e(TAG, "Could not apply per-app output routing", error)
             unregister()
-            lastError = error.cause?.message ?: error.message ?: "Audio routing is unavailable"
+            var root: Throwable = error
+            while (root.cause != null && root.cause !== root) root = root.cause!!
+            lastError = root.message ?: root.javaClass.simpleName
         }
     }
 
@@ -119,19 +119,6 @@ internal class AudioOutputRouter(
         }
         policy = null
         policyUids = emptySet()
-    }
-
-    private fun buildMix(device: AudioDeviceInfo, uids: List<Int>): Any {
-        val ruleBuilder = Reflect.onClass("android.media.audiopolicy.AudioMixingRule\$Builder")
-            .create()
-        uids.forEach { uid -> ruleBuilder.call("addMixRule", RULE_MATCH_UID, uid) }
-        val rule = ruleBuilder.call("build").get<Any>()
-
-        val mixBuilder = Reflect.onClass("android.media.audiopolicy.AudioMix\$Builder").create()
-        mixBuilder.call("setMixingRule", rule)
-        mixBuilder.call("setRouteFlags", ROUTE_FLAG_RENDER)
-        mixBuilder.call("setDevice", device)
-        return mixBuilder.call("build").get<Any>()
     }
 
     private fun unregisterPolicy(value: Any) {
