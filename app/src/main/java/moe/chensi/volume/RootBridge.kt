@@ -19,8 +19,6 @@ object RootBridge {
         val activityThread = Reflect.onClass("android.app.ActivityThread").call("systemMain")
         val context = activityThread.call("getSystemContext").get<Context>()
         val volumeController = RootVolumeController(context)
-        runCatching { volumeController.register() }
-            .onFailure { android.util.Log.e("VolumeManager.Root", "Could not register root volume controller", it) }
         val services = Bundle()
         for (name in RootAccess.serviceNames) {
             val base = Reflect.onClass("android.os.ServiceManager")
@@ -45,8 +43,8 @@ object RootBridge {
         val holder = Reflect.on(manager).call(
             "getContentProviderExternal", RootAccess.AUTHORITY, 0, token, "VolumeManager"
         ).get<Any?>() ?: error("Root bridge provider unavailable")
+        val provider = Reflect.on(holder).get<Any>("provider")
         val result = try {
-            val provider = Reflect.on(holder).get<Any>("provider")
             Reflect.on(provider).call(
                 "call", context.attributionSource, RootAccess.AUTHORITY,
                 RootAccess.INSTALL, null, services
@@ -62,6 +60,14 @@ object RootBridge {
             volumeController.restore()
             Process.killProcess(Process.myPid())
         }, 0)
+        volumeController.onShowPanel = {
+            Reflect.on(provider).call(
+                "call", context.attributionSource, RootAccess.AUTHORITY,
+                RootAccess.SHOW_PANEL, null, null
+            )
+        }
+        runCatching { volumeController.register() }
+            .onFailure { android.util.Log.e("VolumeManager.Root", "Could not register root volume controller", it) }
         Looper.loop()
     }
 

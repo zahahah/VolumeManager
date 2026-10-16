@@ -17,6 +17,7 @@ object RootAccess {
     private const val TAG = "VolumeManager.Root"
     internal const val AUTHORITY = "moe.chensi.volume.root_bridge"
     internal const val INSTALL = "install"
+    internal const val SHOW_PANEL = "show_panel"
     internal val serviceNames = listOf("audio", "activity", "package", "notification", "activity_task")
     private const val ROUTING_DESCRIPTOR = "moe.chensi.volume.IRootAudioRouting"
     private const val ROUTING_TRANSACTION = IBinder.FIRST_CALL_TRANSACTION
@@ -140,13 +141,25 @@ class RootBridgeProvider : ContentProvider() {
     override fun onCreate() = true
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
-        if (method != RootAccess.INSTALL || Binder.getCallingUid() != 0 || extras == null) {
+        if (Binder.getCallingUid() != 0) {
             throw SecurityException("Root-only bridge installation")
         }
-        RootAccess.install(extras)
-        return Bundle().apply {
-            putBoolean("connected", RootAccess.connected)
-            putBinder("owner", RootAccess.owner)
+        return when (method) {
+            RootAccess.INSTALL -> {
+                if (extras == null) throw IllegalArgumentException("Missing bridge binders")
+                RootAccess.install(extras)
+                Bundle().apply {
+                    putBoolean("connected", RootAccess.connected)
+                    putBinder("owner", RootAccess.owner)
+                }
+            }
+            RootAccess.SHOW_PANEL -> {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    (context?.applicationContext as? MyApplication)?.rootOverlayPanel?.show()
+                }
+                Bundle.EMPTY
+            }
+            else -> throw IllegalArgumentException("Unknown bridge method")
         }
     }
 

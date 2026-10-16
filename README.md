@@ -23,7 +23,7 @@ This fork keeps the original package ID. A release signed with a different certi
 
 1. Install and enable [Shizuku](https://shizuku.rikka.app/) **or** have a working root manager (`su`).
 2. Launch Volume Manager. Use the button in the top bar to choose Shizuku or Root. Grant the selected access request.
-3. In Shizuku mode, the app attempts to enable its accessibility service. Root mode handles the volume-button popup without accessibility.
+3. In Shizuku mode, the app attempts to enable its accessibility service. In Root mode, allow **Display over other apps** when prompted; the volume-button panel then floats without accessibility or pausing the app underneath.
 4. You can change volume either from
    1. The main interface
    2. Press any volume button and a popup should appear, completely replace the default volume popup
@@ -67,3 +67,14 @@ Saved selections are preserved, but no output-device menu or routing policy is a
 ## Note
 
 This app uses the same API as MIUI's "Adjust media sound in multiple apps". Because this API can only setting volume, not reading, the volume set by one app will not be reflected in the other one.
+# JamesDSP integration (experimental)
+
+On the `pixel-test` branch, enable **JamesDSP controls** in Settings to show a
+global post-gain slider and effect toggles in the volume panel. The integration
+is global to the JamesDSP engine, not per application. It requires a compatible
+RootJamesDSP build that includes the protected `volume_manager` content-provider
+API; older installations are detected as unavailable. Gain is limited to
+−15..+15 dB and starts at the JamesDSP default of 0 dB.
+
+GitHub Actions builds debug APKs for this branch. RootJamesDSP preview APKs are
+published as separate workflow artifacts in the RootJamesDSP fork.

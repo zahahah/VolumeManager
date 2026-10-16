@@ -19,6 +19,7 @@ internal class RootVolumeController(private val context: Context) {
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private var previousController: Any? = null
     private var registered = false
+    var onShowPanel: (() -> Unit)? = null
 
     private val controllerBinder = object : Binder() {
         init { attachInterface(null, DESCRIPTOR) }
@@ -57,18 +58,10 @@ internal class RootVolumeController(private val context: Context) {
     }
 
     private fun showPanel() {
-        // An app_process started via su has no IApplicationThread, so ActivityTaskManager
-        // rejects Context.startActivity() with BAL_BLOCK. Hand off the start to Android's
-        // shell uid, which is permitted to launch this user-visible panel without requiring
-        // an AccessibilityService or changing persistent system settings.
+        val identity = Binder.clearCallingIdentity()
         runCatching {
-            val process = ProcessBuilder(
-                "/system/bin/su", "2000", "-c",
-                "am start --user 0 -f 0x30000000 -n moe.chensi.volume/.PopupActivity"
-            ).redirectErrorStream(true).start()
-            val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
-            check(process.waitFor() == 0) { "Activity launch failed: $output" }
-            Log.d(TAG, "Root volume panel launch requested: $output")
-        }.onFailure { Log.e(TAG, "Could not open the root volume panel", it) }
+            onShowPanel?.invoke()
+        }.onFailure { Log.e(TAG, "Could not open the root volume overlay", it) }
+        Binder.restoreCallingIdentity(identity)
     }
 }

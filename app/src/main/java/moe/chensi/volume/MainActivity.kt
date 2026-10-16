@@ -135,6 +135,7 @@ class MainActivity : ComponentActivity() {
 
     val powerManager by lazy { getSystemService(PowerManager::class.java)!! }
     var isIgnoringBatteryOptimization by mutableStateOf(false)
+    private var canDrawRootOverlay by mutableStateOf(false)
     private fun checkBatteryOptimization() {
         isIgnoringBatteryOptimization =
             powerManager.isIgnoringBatteryOptimizations(applicationInfo.packageName)
@@ -153,6 +154,7 @@ class MainActivity : ComponentActivity() {
             CrashHandler.hasCrashReport() && CrashHandler.readCrashReport() != null
 
         checkBatteryOptimization()
+        canDrawRootOverlay = Settings.canDrawOverlays(this)
 
         setContent {
             var showAll by remember { mutableStateOf(false) }
@@ -204,6 +206,8 @@ class MainActivity : ComponentActivity() {
                             isRootMode = manager.accessMode == Manager.AccessMode.Root,
                             startAtBoot = manager.startAtBoot,
                             onStartAtBootChange = manager::updateStartAtBoot,
+                            jamesDspControls = manager.jamesDspControlsEnabled,
+                            onJamesDspControlsChange = manager::updateJamesDspControls,
                             onDismiss = { showSettingsDialog = false }
                         )
                     }
@@ -277,6 +281,15 @@ class MainActivity : ComponentActivity() {
                     ) {
                         if (manager.accessMode == Manager.AccessMode.Root) {
                             if (manager.isConnected) {
+                                if (!canDrawRootOverlay) {
+                                    Text("Allow display over other apps to show the Root volume panel without pausing the current app.")
+                                    Button(onClick = {
+                                        startActivity(Intent(
+                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            Uri.fromParts("package", packageName, null)
+                                        ))
+                                    }) { Text("Allow floating panel") }
+                                }
                                 ConnectedContent(manager, showAll) { showAll = true }
                             } else {
                                 Column(
@@ -390,15 +403,20 @@ class MainActivity : ComponentActivity() {
             masterVolumeScale = manager.masterVolumeScale,
             content = {
                 item("system_volume_panel_main") {
-                    SystemVolumePanel(
-                        audioManager = manager.audioManager,
-                        notificationManagerProxy = manager.notificationManagerProxy,
-                        showCallVolumeAlways = true,
-                        applyVisibilityFilter = !showAll,
-                        allowVisibilityConfig = showAll,
-                        isSliderVisible = manager::isSystemSliderVisible,
-                        onSliderVisibilityChange = manager::setSystemSliderVisible,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SystemVolumePanel(
+                            audioManager = manager.audioManager,
+                            notificationManagerProxy = manager.notificationManagerProxy,
+                            showCallVolumeAlways = true,
+                            applyVisibilityFilter = !showAll,
+                            allowVisibilityConfig = showAll,
+                            isSliderVisible = manager::isSystemSliderVisible,
+                            onSliderVisibilityChange = manager::setSystemSliderVisible,
+                        )
+                        moe.chensi.volume.compose.JamesDspControls(
+                            enabled = manager.jamesDspControlsEnabled
+                        )
+                    }
                 }
             })
     }
@@ -407,6 +425,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
 
         checkBatteryOptimization()
+        canDrawRootOverlay = Settings.canDrawOverlays(this)
     }
 
 
@@ -483,6 +502,8 @@ class MainActivity : ComponentActivity() {
         isRootMode: Boolean,
         startAtBoot: Boolean,
         onStartAtBootChange: (Boolean) -> Unit,
+        jamesDspControls: Boolean,
+        onJamesDspControlsChange: (Boolean) -> Unit,
         onDismiss: () -> Unit
     ) {
         AlertDialog(
@@ -490,6 +511,21 @@ class MainActivity : ComponentActivity() {
             title = { Text("Settings") },
             text = {
                 Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("JamesDSP controls")
+                            Text(
+                                "Show global JamesDSP post gain and effects in the volume panel.",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = jamesDspControls,
+                            onCheckedChange = onJamesDspControlsChange
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Start Root mode after boot")

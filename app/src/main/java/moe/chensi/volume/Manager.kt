@@ -52,6 +52,8 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         private set
     var startAtBoot by mutableStateOf(settings.getBoolean("start_at_boot", false))
         private set
+    var jamesDspControlsEnabled by mutableStateOf(settings.getBoolean("jamesdsp_controls_enabled", false))
+        private set
     var rootError by mutableStateOf<String?>(null)
         private set
     private var rootConnected by mutableStateOf(false)
@@ -332,6 +334,11 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         } else {
             RootKeepAliveService.stop(appContext)
         }
+    }
+
+    fun updateJamesDspControls(enabled: Boolean) {
+        jamesDspControlsEnabled = enabled
+        settings.edit().putBoolean("jamesdsp_controls_enabled", enabled).apply()
     }
 
     fun connectRoot(context: Context) {

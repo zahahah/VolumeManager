@@ -193,16 +193,22 @@ class Service : AccessibilityService() {
                                 masterVolumeScale = manager.masterVolumeScale
                             ) {
                                 item("system_volume_panel") {
-                                    SystemVolumePanel(
-                                        audioManager = manager.audioManager,
-                                        notificationManagerProxy = manager.notificationManagerProxy,
-                                        showCallVolumeAlways = false,
-                                        applyVisibilityFilter = true,
-                                        allowVisibilityConfig = false,
-                                        isSliderVisible = manager::isSystemSliderVisible,
-                                        onSliderVisibilityChange = manager::setSystemSliderVisible,
-                                        onChange = this@Service.handler::startIdleTimer
-                                    )
+                                    Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                                        SystemVolumePanel(
+                                            audioManager = manager.audioManager,
+                                            notificationManagerProxy = manager.notificationManagerProxy,
+                                            showCallVolumeAlways = false,
+                                            applyVisibilityFilter = true,
+                                            allowVisibilityConfig = false,
+                                            isSliderVisible = manager::isSystemSliderVisible,
+                                            onSliderVisibilityChange = manager::setSystemSliderVisible,
+                                            onChange = this@Service.handler::startIdleTimer
+                                        )
+                                        moe.chensi.volume.compose.JamesDspControls(
+                                            enabled = manager.jamesDspControlsEnabled,
+                                            onChange = this@Service.handler::startIdleTimer
+                                        )
+                                    }
                                 }
                             }
                         }

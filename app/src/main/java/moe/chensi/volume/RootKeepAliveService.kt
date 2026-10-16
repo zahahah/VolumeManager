@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 
 /** Keeps the opted-in root session alive without installing or mounting persistent files. */
 class RootKeepAliveService : Service() {
@@ -48,7 +49,10 @@ class RootKeepAliveService : Service() {
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("Volume Manager")
-            .setContentText("Root volume control is active")
+            .setContentText(
+                if (Settings.canDrawOverlays(this)) "Root volume control is active"
+                else "Open the app to allow the floating panel"
+            )
             .setContentIntent(openApp)
             .setOngoing(true)
             .build()

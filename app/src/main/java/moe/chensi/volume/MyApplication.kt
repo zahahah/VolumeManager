@@ -14,6 +14,7 @@ class MyApplication : Application() {
     val manager by lazy {
         Manager(this, dataStore)
     }
+    val rootOverlayPanel by lazy { RootOverlayPanel(this) }
 
     override fun attachBaseContext(base: Context?) {
         super.attachBaseContext(base)
