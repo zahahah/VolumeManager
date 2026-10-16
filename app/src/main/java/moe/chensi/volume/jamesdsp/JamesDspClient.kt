@@ -39,12 +39,13 @@ class JamesDspClient(context: Context) {
     fun getState(): JamesDspState? {
         lastError = null
         for (packageName in APP_PACKAGES) {
-            if (!isInstalled(packageName)) continue
             val result = try {
                 call(packageName, METHOD_GET_STATE, null)
             } catch (error: Exception) {
                 Log.w("JamesDspClient", "Integration call to $packageName failed", error)
-                lastError = "$packageName: ${error.javaClass.simpleName}: ${error.message.orEmpty()}"
+                if (lastError == null) {
+                    lastError = "$packageName: ${error.javaClass.simpleName}: ${error.message.orEmpty()}"
+                }
                 continue
             }
             val effects = EFFECT_IDS.associateWith { result.getBoolean("effect_$it", false) }
@@ -77,10 +78,6 @@ class JamesDspClient(context: Context) {
     }
 
     fun getAppIcon(packageName: String) = appContext.packageManager.getApplicationIcon(packageName)
-
-    private fun isInstalled(packageName: String): Boolean = runCatching {
-        appContext.packageManager.getPackageInfo(packageName, 0)
-    }.isSuccess
 
     private fun call(packageName: String, method: String, extras: Bundle?): Bundle {
         val uri = Uri.parse("content://$packageName.volume_manager")
