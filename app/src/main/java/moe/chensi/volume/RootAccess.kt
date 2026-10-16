@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
+import android.os.Parcel
 import android.util.Log
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -17,9 +18,12 @@ object RootAccess {
     internal const val AUTHORITY = "moe.chensi.volume.root_bridge"
     internal const val INSTALL = "install"
     internal val serviceNames = listOf("audio", "activity", "package", "notification", "activity_task")
+    private const val ROUTING_DESCRIPTOR = "moe.chensi.volume.IRootAudioRouting"
+    private const val ROUTING_TRANSACTION = IBinder.FIRST_CALL_TRANSACTION
 
     @Volatile private var binders: Map<String, IBinder> = emptyMap()
     @Volatile private var control: IBinder? = null
+    @Volatile private var routing: IBinder? = null
     internal val owner = Binder()
     @Volatile var active: Boolean = false
     @Volatile var onConnected: (() -> Unit)? = null
@@ -37,6 +41,7 @@ object RootAccess {
             }
         }.toMap()
         val newControl = values.getBinder("control") ?: return
+        val newRouting = values.getBinder("routing") ?: return
         if (newBinders.size != serviceNames.size) return
         val death = IBinder.DeathRecipient {
             binders = emptyMap()
@@ -50,6 +55,7 @@ object RootAccess {
         }
         binders = newBinders
         control = newControl
+        routing = newRouting
         launching.set(false)
         onConnected?.invoke()
     }
@@ -64,7 +70,34 @@ object RootAccess {
             data.recycle()
         }
         control = null
+        routing = null
         binders = emptyMap()
+    }
+
+    internal data class OutputRoute(val uid: Int, val deviceType: Int, val address: String)
+
+    /** Execute audio-policy calls in the root process so AudioPolicy attribution PID stays valid. */
+    internal fun updateOutputRoutes(routes: List<OutputRoute>): String? {
+        val binder = routing ?: return "Root audio routing service is unavailable"
+        val data = Parcel.obtain()
+        val reply = Parcel.obtain()
+        return try {
+            data.writeInterfaceToken(ROUTING_DESCRIPTOR)
+            data.writeInt(routes.size)
+            routes.forEach { route ->
+                data.writeInt(route.uid)
+                data.writeInt(route.deviceType)
+                data.writeString(route.address)
+            }
+            binder.transact(ROUTING_TRANSACTION, data, reply, 0)
+            reply.readException()
+            reply.readString()
+        } catch (error: Exception) {
+            error.message ?: error.javaClass.simpleName
+        } finally {
+            data.recycle()
+            reply.recycle()
+        }
     }
 
     fun connect(context: Context, onError: (String) -> Unit) {

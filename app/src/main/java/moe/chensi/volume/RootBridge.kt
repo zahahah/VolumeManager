@@ -24,6 +24,7 @@ object RootBridge {
                 .call("getService", name).get<IBinder?>() ?: error("Missing service: $name")
             services.putBinder(name, Relay(base))
         }
+        services.putBinder("routing", RootAudioRoutingBridge(context))
         services.putBinder("control", object : Binder() {
             override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
                 if (code == 1) {

@@ -20,6 +20,7 @@ internal class AudioOutputRouter(
 
     private var policy: Any? = null
     private var policyUids: Set<Int> = emptySet()
+    private var usingRootBridge = false
     var lastError: String? = null
         private set
 
@@ -44,6 +45,18 @@ internal class AudioOutputRouter(
             { it.value.type to it.value.address },
             { it.key to it.value }
         )
+
+        if (RootAccess.active) {
+            val error = RootAccess.updateOutputRoutes(
+                selectedByUid.map { (uid, device) ->
+                    RootAccess.OutputRoute(uid, device.type, device.address)
+                }
+            )
+            usingRootBridge = true
+            lastError = error
+            if (error != null) Log.e(TAG, "Root bridge could not apply output routing: $error")
+            return
+        }
 
         if (groups.isEmpty()) {
             unregister()
@@ -87,6 +100,12 @@ internal class AudioOutputRouter(
 
     @SuppressLint("PrivateApi")
     fun unregister() {
+        if (usingRootBridge) {
+            RootAccess.updateOutputRoutes(emptyList())?.let {
+                Log.w(TAG, "Could not clear root audio routing: $it")
+            }
+            usingRootBridge = false
+        }
         policy?.let { current ->
             policyUids.forEach { uid ->
                 runCatching {
