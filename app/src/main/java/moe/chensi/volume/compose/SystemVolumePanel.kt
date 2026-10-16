@@ -60,7 +60,8 @@ fun SystemVolumePanel(
     allowVisibilityConfig: Boolean,
     isSliderVisible: (String) -> Boolean,
     onSliderVisibilityChange: (String, Boolean) -> Unit,
-    onChange: (() -> Unit)? = null
+    onChange: (() -> Unit)? = null,
+    beforeMedia: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
     val executor = remember(context) { ContextCompat.getMainExecutor(context) }
@@ -101,6 +102,8 @@ fun SystemVolumePanel(
                 )
             }
         }
+
+        beforeMedia()
 
         if (!applyVisibilityFilter || isSliderVisible(SystemSliderIds.Media)) {
             StreamVolumeSlider(

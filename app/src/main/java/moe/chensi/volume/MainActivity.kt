@@ -208,6 +208,8 @@ class MainActivity : ComponentActivity() {
                             onStartAtBootChange = manager::updateStartAtBoot,
                             jamesDspControls = manager.jamesDspControlsEnabled,
                             onJamesDspControlsChange = manager::updateJamesDspControls,
+                            hideJamesDspWhenInactive = manager.hideJamesDspWhenInactive,
+                            onHideJamesDspWhenInactiveChange = manager::updateHideJamesDspWhenInactive,
                             onDismiss = { showSettingsDialog = false }
                         )
                     }
@@ -412,9 +414,12 @@ class MainActivity : ComponentActivity() {
                             allowVisibilityConfig = showAll,
                             isSliderVisible = manager::isSystemSliderVisible,
                             onSliderVisibilityChange = manager::setSystemSliderVisible,
-                        )
-                        moe.chensi.volume.compose.JamesDspControls(
-                            enabled = manager.jamesDspControlsEnabled
+                            beforeMedia = {
+                                moe.chensi.volume.compose.JamesDspControls(
+                                    enabled = manager.jamesDspControlsEnabled,
+                                    hideWhenInactive = manager.hideJamesDspWhenInactive
+                                )
+                            }
                         )
                     }
                 }
@@ -504,6 +509,8 @@ class MainActivity : ComponentActivity() {
         onStartAtBootChange: (Boolean) -> Unit,
         jamesDspControls: Boolean,
         onJamesDspControlsChange: (Boolean) -> Unit,
+        hideJamesDspWhenInactive: Boolean,
+        onHideJamesDspWhenInactiveChange: (Boolean) -> Unit,
         onDismiss: () -> Unit
     ) {
         AlertDialog(
@@ -523,6 +530,21 @@ class MainActivity : ComponentActivity() {
                         Switch(
                             checked = jamesDspControls,
                             onCheckedChange = onJamesDspControlsChange
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Esconder JamesDSP do painel de volume quando inativo")
+                            Text(
+                                "Quando desativado, o painel permanece visível em tons de cinza enquanto o JamesDSP estiver desligado.",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = hideJamesDspWhenInactive,
+                            onCheckedChange = onHideJamesDspWhenInactiveChange
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))

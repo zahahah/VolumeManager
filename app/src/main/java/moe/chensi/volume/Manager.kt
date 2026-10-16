@@ -54,6 +54,8 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         private set
     var jamesDspControlsEnabled by mutableStateOf(settings.getBoolean("jamesdsp_controls_enabled", false))
         private set
+    var hideJamesDspWhenInactive by mutableStateOf(settings.getBoolean("hide_jamesdsp_when_inactive", true))
+        private set
     var rootError by mutableStateOf<String?>(null)
         private set
     private var rootConnected by mutableStateOf(false)
@@ -339,6 +341,11 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
     fun updateJamesDspControls(enabled: Boolean) {
         jamesDspControlsEnabled = enabled
         settings.edit().putBoolean("jamesdsp_controls_enabled", enabled).apply()
+    }
+
+    fun updateHideJamesDspWhenInactive(hide: Boolean) {
+        hideJamesDspWhenInactive = hide
+        settings.edit().putBoolean("hide_jamesdsp_when_inactive", hide).apply()
     }
 
     fun connectRoot(context: Context) {

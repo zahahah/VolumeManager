@@ -1,6 +1,8 @@
 package moe.chensi.volume.jamesdsp
 
 import android.content.Context
+import android.content.ComponentName
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -8,7 +10,9 @@ import android.util.Log
 data class JamesDspState(
     val packageName: String,
     val postGainDb: Float,
-    val effects: Map<String, Boolean>
+    val effects: Map<String, Boolean>,
+    val active: Boolean,
+    val parameters: Map<String, Float>
 )
 
 /** Talks only to the narrow, caller-checked provider shipped by RootJamesDSP. */
@@ -17,10 +21,18 @@ class JamesDspClient(context: Context) {
         const val METHOD_GET_STATE = "get_state"
         const val METHOD_SET_POST_GAIN = "set_post_gain"
         const val METHOD_SET_EFFECT = "set_effect"
+        const val METHOD_SET_PARAMETER = "set_parameter"
+        const val METHOD_SET_POWERED_ON = "set_powered_on"
         const val EXTRA_POST_GAIN = "post_gain"
         const val EXTRA_EFFECT_ID = "effect_id"
         const val EXTRA_ENABLED = "enabled"
-
+        const val EXTRA_PARAMETER_ID = "parameter_id"
+        const val EXTRA_VALUE = "value"
+        val PARAMETER_RANGES = mapOf(
+            "bass" to (3f..15f),
+            "stereo_wide" to (30f..75f),
+            "tube" to (-3f..12f)
+        )
         val EFFECT_IDS = listOf(
             "compander", "bass", "equalizer", "graphic_eq", "reverb", "stereo_wide",
             "crossfeed", "tube", "ddc", "liveprog", "convolver"
@@ -52,7 +64,11 @@ class JamesDspClient(context: Context) {
             return JamesDspState(
                 packageName = packageName,
                 postGainDb = result.getFloat(EXTRA_POST_GAIN, 0f).coerceIn(-15f, 15f),
-                effects = effects
+                effects = effects,
+                active = result.getBoolean("active", true),
+                parameters = PARAMETER_RANGES.mapValues { (id, range) ->
+                    result.getFloat("parameter_$id", range.start).coerceIn(range.start, range.endInclusive)
+                }
             )
         }
         return null
@@ -77,11 +93,42 @@ class JamesDspClient(context: Context) {
         }.getOrDefault(false)
     }
 
+    fun setParameter(packageName: String, parameterId: String, value: Float): Boolean {
+        val range = PARAMETER_RANGES[parameterId] ?: return false
+        if (!value.isFinite() || value !in range) return false
+        return runCatching {
+            call(packageName, METHOD_SET_PARAMETER, Bundle().apply {
+                putString(EXTRA_PARAMETER_ID, parameterId)
+                putFloat(EXTRA_VALUE, value)
+            }).getBoolean("success")
+        }.getOrDefault(false)
+    }
+
+    fun setPoweredOn(packageName: String, enabled: Boolean): Boolean = runCatching {
+        call(packageName, METHOD_SET_POWERED_ON, Bundle().apply {
+            putBoolean(EXTRA_ENABLED, enabled)
+        }).getBoolean("success")
+    }.getOrDefault(false)
+
+    fun openEffect(packageName: String, effectId: String): Boolean {
+        if (effectId !in EFFECT_IDS) return false
+        return runCatching {
+            appContext.startActivity(Intent().apply {
+                component = ComponentName(packageName,
+                    "me.timschneeberger.rootlessjamesdsp.activity.MainActivity")
+                action = "$packageName.action.OPEN_EFFECT"
+                putExtra("effect_id", effectId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+            true
+        }.getOrDefault(false)
+    }
+
     fun getAppIcon(packageName: String) = appContext.packageManager.getApplicationIcon(packageName)
 
     private fun call(packageName: String, method: String, extras: Bundle?): Bundle {
         val uri = Uri.parse("content://$packageName.volume_manager")
         return appContext.contentResolver.call(uri, method, null, extras)
-            ?: throw IllegalStateException("JamesDSP did not respond")
+            ?: throw IllegalStateException("JamesDSP provider did not respond")
     }
 }

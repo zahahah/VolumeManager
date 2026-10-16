@@ -83,6 +83,19 @@ class Service : AccessibilityService() {
             }
         }
 
+        fun hideViewImmediately() {
+            removeCallbacks(hideViewRunnable)
+            if (!viewVisible) return
+            viewVisible = false
+            view?.let { panel ->
+                panel.background = null
+                lifecycle?.currentState = Lifecycle.State.DESTROYED
+                runCatching { windowManager.removeView(panel) }
+                    .onFailure { Log.w(TAG, "Could not immediately remove volume panel", it) }
+            }
+            view = null
+        }
+
         private val hideViewRunnable = Runnable(::hideView)
 
         fun startIdleTimer() {
@@ -202,11 +215,15 @@ class Service : AccessibilityService() {
                                             allowVisibilityConfig = false,
                                             isSliderVisible = manager::isSystemSliderVisible,
                                             onSliderVisibilityChange = manager::setSystemSliderVisible,
-                                            onChange = this@Service.handler::startIdleTimer
-                                        )
-                                        moe.chensi.volume.compose.JamesDspControls(
-                                            enabled = manager.jamesDspControlsEnabled,
-                                            onChange = this@Service.handler::startIdleTimer
+                                            onChange = this@Service.handler::startIdleTimer,
+                                            beforeMedia = {
+                                                moe.chensi.volume.compose.JamesDspControls(
+                                                    enabled = manager.jamesDspControlsEnabled,
+                                                    hideWhenInactive = manager.hideJamesDspWhenInactive,
+                                                    onChange = this@Service.handler::startIdleTimer,
+                                                    onOpenEffect = this@Service.handler::hideViewImmediately
+                                                )
+                                            }
                                         )
                                     }
                                 }
