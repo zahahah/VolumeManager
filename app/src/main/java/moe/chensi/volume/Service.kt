@@ -6,10 +6,6 @@ import android.accessibilityservice.AccessibilityService
 import android.animation.Animator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.os.Build
@@ -52,8 +48,6 @@ import java.util.Objects
 @SuppressLint("AccessibilityPolicy")
 class Service : AccessibilityService() {
     companion object {
-        const val ACTION_SHOW_VIEW = "moe.chensi.volume.ACTION_SHOW_VIEW"
-
         private const val TAG = "VolumeManager.Service"
 
         private const val ANIMATION_DURATION = 300L
@@ -303,15 +297,6 @@ class Service : AccessibilityService() {
         currentAnimator = animator
     }
 
-    private val broadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            Log.i(TAG, "onReceive ${intent.action}")
-            if (intent.action == ACTION_SHOW_VIEW) {
-                showView()
-            }
-        }
-    }
-
     override fun onServiceConnected() {
         Log.i(TAG, "onServiceConnected")
 
@@ -326,8 +311,6 @@ class Service : AccessibilityService() {
                 }
             }
         })
-
-        registerReceiver(broadcastReceiver, IntentFilter(ACTION_SHOW_VIEW), RECEIVER_NOT_EXPORTED)
 
         Log.i(TAG, "onServiceConnected done ${serviceInfo.capabilities.toString(2)}")
     }
@@ -346,7 +329,6 @@ class Service : AccessibilityService() {
 
         Toast.makeText(this, "Accessibility service died!", Toast.LENGTH_SHORT).show()
 
-        unregisterReceiver(broadcastReceiver)
     }
 
     val activityTaskManager by lazy { ActivityTaskManagerProxy(this) }

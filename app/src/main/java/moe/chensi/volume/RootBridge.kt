@@ -18,6 +18,9 @@ object RootBridge {
         Looper.prepareMainLooper()
         val activityThread = Reflect.onClass("android.app.ActivityThread").call("systemMain")
         val context = activityThread.call("getSystemContext").get<Context>()
+        val volumeController = RootVolumeController(context)
+        runCatching { volumeController.register() }
+            .onFailure { android.util.Log.e("VolumeManager.Root", "Could not register root volume controller", it) }
         val services = Bundle()
         for (name in RootAccess.serviceNames) {
             val base = Reflect.onClass("android.os.ServiceManager")
@@ -28,6 +31,7 @@ object RootBridge {
         services.putBinder("control", object : Binder() {
             override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
                 if (code == 1) {
+                    volumeController.restore()
                     Process.killProcess(Process.myPid())
                     return true
                 }
@@ -54,7 +58,10 @@ object RootBridge {
         }
         check(result?.getBoolean("connected") == true) { "Bridge handoff failed" }
         val owner = result.getBinder("owner") ?: error("Missing app owner Binder")
-        owner.linkToDeath({ Process.killProcess(Process.myPid()) }, 0)
+        owner.linkToDeath({
+            volumeController.restore()
+            Process.killProcess(Process.myPid())
+        }, 0)
         Looper.loop()
     }
 
