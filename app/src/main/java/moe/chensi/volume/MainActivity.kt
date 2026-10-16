@@ -535,9 +535,9 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.width(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Esconder JamesDSP do painel de volume quando inativo")
+                            Text("Hide JamesDSP from the volume panel when inactive")
                             Text(
-                                "Quando desativado, o painel permanece visível em tons de cinza enquanto o JamesDSP estiver desligado.",
+                                "When disabled, the panel stays visible in grayscale while JamesDSP is off.",
                                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall
                             )
                         }
