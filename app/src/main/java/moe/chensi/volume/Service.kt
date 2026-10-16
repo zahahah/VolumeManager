@@ -50,9 +50,10 @@ class Service : AccessibilityService() {
     companion object {
         private const val TAG = "VolumeManager.Service"
 
-        private const val ANIMATION_DURATION = 300L
+        private const val FADE_IN_DURATION = 300L
+        private const val FADE_OUT_DURATION = 350L
 
-        private const val IDLE_TIMEOUT = 5000L
+        private const val IDLE_TIMEOUT = 2500L
         private const val AUTO_REPEAT_DELAY = 100L
         private const val AUTO_REPEAT_INITIAL_DELAY = 500L
     }
@@ -70,7 +71,7 @@ class Service : AccessibilityService() {
         fun hideView() {
             if (viewVisible) {
                 Log.i(TAG, "animate out")
-                animateAlpha(layoutParams.alpha, 0f, ANIMATION_DURATION) {
+                animateAlpha(layoutParams.alpha, 0f, FADE_OUT_DURATION) {
                     if (!viewVisible) {
                         Log.i(TAG, "remove view")
                         view!!.background = null
@@ -86,6 +87,7 @@ class Service : AccessibilityService() {
         fun hideViewImmediately() {
             removeCallbacks(hideViewRunnable)
             if (!viewVisible) return
+            currentAnimator?.cancel()
             viewVisible = false
             view?.let { panel ->
                 panel.background = null
@@ -97,6 +99,21 @@ class Service : AccessibilityService() {
         }
 
         private val hideViewRunnable = Runnable(::hideView)
+
+        fun pauseIdleTimer() {
+            removeCallbacks(hideViewRunnable)
+        }
+
+        fun beginPanelInteraction() {
+            pauseIdleTimer()
+            currentAnimator?.cancel()
+            view?.let { panel ->
+                viewVisible = true
+                layoutParams.alpha = 1f
+                runCatching { windowManager.updateViewLayout(panel, layoutParams) }
+                    .onFailure { Log.w(TAG, "Could not keep volume panel visible during touch", it) }
+            }
+        }
 
         fun startIdleTimer() {
             removeCallbacks(hideViewRunnable)
@@ -173,6 +190,15 @@ class Service : AccessibilityService() {
                 }
 
                 this@Service.handler.startIdleTimer()
+            }
+
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> this@Service.handler.beginPanelInteraction()
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        this@Service.handler.startIdleTimer()
+                }
+                return super.dispatchTouchEvent(event)
             }
 
             @SuppressLint("ClickableViewAccessibility")
@@ -261,7 +287,7 @@ class Service : AccessibilityService() {
 
         if (!viewVisible) {
             Log.i(TAG, "animate in")
-            animateAlpha(layoutParams.alpha, 1f, ANIMATION_DURATION)
+            animateAlpha(layoutParams.alpha, 1f, FADE_IN_DURATION)
             viewVisible = true
         }
 

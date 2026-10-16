@@ -32,16 +32,29 @@ import moe.chensi.volume.ui.theme.VolumeManagerTheme
 
 /** A touchable, non-focusable Root panel that does not pause the underlying Activity. */
 class RootOverlayPanel(private val context: Context) {
+    private companion object {
+        const val FADE_OUT_DURATION = 350L
+        const val DISMISS_TIMEOUT = 2500L
+    }
+
     private val manager get() = (context.applicationContext as MyApplication).manager
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
     private val dismissRunnable = Runnable { hide() }
     private var view: View? = null
     private var owner: PanelLifecycleOwner? = null
+    private var isFadingOut = false
 
     fun show() {
         if (!Settings.canDrawOverlays(context)) {
             Log.w("VolumeManager.RootPanel", "Overlay permission not granted")
+            return
+        }
+        view?.let { panel ->
+            panel.animate().cancel()
+            panel.alpha = 1f
+            isFadingOut = false
+            restartDismissTimer()
             return
         }
         if (view == null) {
@@ -50,6 +63,14 @@ class RootOverlayPanel(private val context: Context) {
                 init {
                     setViewTreeLifecycleOwner(lifecycleOwner)
                     setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                }
+
+                override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN -> beginPanelInteraction(this)
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> restartDismissTimer()
+                    }
+                    return super.dispatchTouchEvent(event)
                 }
 
                 override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -130,17 +151,37 @@ class RootOverlayPanel(private val context: Context) {
 
     private fun restartDismissTimer() {
         handler.removeCallbacks(dismissRunnable)
-        handler.postDelayed(dismissRunnable, 5_000L)
+        handler.postDelayed(dismissRunnable, DISMISS_TIMEOUT)
+    }
+
+    private fun beginPanelInteraction(panel: View) {
+        handler.removeCallbacks(dismissRunnable)
+        panel.animate().cancel()
+        panel.alpha = 1f
+        isFadingOut = false
     }
 
     private fun hide() {
         handler.removeCallbacks(dismissRunnable)
         val panel = view ?: return
-        view = null
-        runCatching { windowManager.removeView(panel) }
-            .onFailure { Log.w("VolumeManager.RootPanel", "Could not remove Root overlay", it) }
-        owner?.lifecycleRegistry?.currentState = Lifecycle.State.DESTROYED
-        owner = null
+        if (isFadingOut) return
+        isFadingOut = true
+        panel.animate()
+            .cancel()
+        panel.animate()
+            .alpha(0f)
+            .setDuration(FADE_OUT_DURATION)
+            .withEndAction {
+                if (view === panel) {
+                    view = null
+                    runCatching { windowManager.removeView(panel) }
+                        .onFailure { Log.w("VolumeManager.RootPanel", "Could not remove Root overlay", it) }
+                    owner?.lifecycleRegistry?.currentState = Lifecycle.State.DESTROYED
+                    owner = null
+                }
+                isFadingOut = false
+            }
+            .start()
     }
 
     private class PanelLifecycleOwner : SavedStateRegistryOwner {

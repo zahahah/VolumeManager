@@ -42,11 +42,21 @@ class JamesDspClient(context: Context) {
             "james.dsp", "james.dsp.debug",
             "me.timschneeberger.rootlessjamesdsp", "me.timschneeberger.rootlessjamesdsp.debug"
         )
+
+        @Volatile
+        private var lastKnownState: JamesDspState? = null
     }
 
     private val appContext = context.applicationContext
     var lastError: String? = null
         private set
+
+    /** Returns the last successful provider response so short-lived panels can render immediately. */
+    fun getCachedState(): JamesDspState? = lastKnownState
+
+    fun cacheState(state: JamesDspState?) {
+        if (state != null) lastKnownState = state
+    }
 
     fun getState(): JamesDspState? {
         lastError = null
@@ -69,8 +79,9 @@ class JamesDspClient(context: Context) {
                 parameters = PARAMETER_RANGES.mapValues { (id, range) ->
                     result.getFloat("parameter_$id", range.start).coerceIn(range.start, range.endInclusive)
                 }
-            )
+            ).also(::cacheState)
         }
+        lastKnownState = null
         return null
     }
 

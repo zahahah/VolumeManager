@@ -94,7 +94,7 @@ fun JamesDspControls(
     val context = androidx.compose.ui.platform.LocalContext.current
     val client = remember(context) { JamesDspClient(context) }
     val scope = rememberCoroutineScope()
-    var state by remember { mutableStateOf<JamesDspState?>(null) }
+    var state by remember(client) { mutableStateOf(client.getCachedState()) }
     var expanded by remember { mutableStateOf(false) }
     var loadFinished by remember { mutableStateOf(false) }
     var gainUpdateJob by remember { mutableStateOf<Job?>(null) }
@@ -120,7 +120,7 @@ fun JamesDspControls(
         loadFinished = true
     }
 
-    if (!loadFinished || (state?.active == false && hideWhenInactive)) return
+    if ((!loadFinished && state == null) || (state?.active == false && hideWhenInactive)) return
 
     Surface(
         modifier = modifier,
@@ -199,6 +199,7 @@ fun JamesDspControls(
                             val parameter = selectedParameter
                             state = if (parameter == null) current.copy(postGainDb = snappedValue)
                                 else current.copy(parameters = current.parameters + (parameter to snappedValue))
+                            client.cacheState(state)
                             gainUpdateJob?.cancel()
                             gainUpdateJob = scope.launch {
                                 delay(140)
@@ -255,6 +256,7 @@ fun JamesDspControls(
                                     .clickable {
                                         val next = !current.active
                                         state = current.copy(active = next)
+                                        client.cacheState(state)
                                         scope.launch {
                                             val success = withContext(Dispatchers.IO) {
                                                 client.setPoweredOn(current.packageName, next)
@@ -316,6 +318,7 @@ fun JamesDspControls(
                                                 val updated = current.effects.toMutableMap()
                                                 updated[effect.id] = !isEnabled
                                                 state = current.copy(effects = updated)
+                                                client.cacheState(state)
                                                 scope.launch {
                                                     val success = withContext(Dispatchers.IO) {
                                                         client.setEffect(current.packageName, effect.id, !isEnabled)
