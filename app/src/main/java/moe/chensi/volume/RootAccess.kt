@@ -74,7 +74,12 @@ object RootAccess {
         binders = emptyMap()
     }
 
-    internal data class OutputRoute(val uid: Int, val deviceType: Int, val address: String)
+    internal data class OutputRoute(
+        val uid: Int,
+        val deviceId: Int,
+        val deviceType: Int,
+        val address: String
+    )
 
     /** Execute audio-policy calls in the root process so AudioPolicy attribution PID stays valid. */
     internal fun updateOutputRoutes(routes: List<OutputRoute>): String? {
@@ -86,6 +91,7 @@ object RootAccess {
             data.writeInt(routes.size)
             routes.forEach { route ->
                 data.writeInt(route.uid)
+                data.writeInt(route.deviceId)
                 data.writeInt(route.deviceType)
                 data.writeString(route.address)
             }

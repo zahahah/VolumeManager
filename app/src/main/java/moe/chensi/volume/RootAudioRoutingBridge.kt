@@ -21,7 +21,6 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
 
     private var policy: Any? = null
     private val policyUids = mutableSetOf<Int>()
-    private val audioManager by lazy { context.getSystemService(AudioManager::class.java) }
 
     init {
         attachInterface(null, DESCRIPTOR)
@@ -34,6 +33,7 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
         val routes = List(count) {
             RootAccess.OutputRoute(
                 uid = data.readInt(),
+                deviceId = data.readInt(),
                 deviceType = data.readInt(),
                 address = data.readString().orEmpty()
             )
@@ -50,12 +50,19 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
         if (routes.isEmpty()) return null
 
         return try {
-            val available = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            val available = context.getSystemService(AudioManager::class.java)
+                .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
                 .filter(AudioDeviceInfo::isSink)
-                .associateBy { it.type to it.address }
             val resolved = routes.map { route ->
-                val device = available[route.deviceType to route.address]
-                    ?: error("Selected audio output is no longer connected")
+                val device = available.firstOrNull {
+                    it.id == route.deviceId && it.type == route.deviceType
+                } ?: available.firstOrNull {
+                    it.type == route.deviceType && it.address == route.address
+                } ?: error(
+                    "Selected audio output port ${route.deviceId} (type ${route.deviceType}) " +
+                        "is unavailable in root bridge; visible ports: " +
+                        available.joinToString { "${it.id}:${it.type}" }
+                )
                 route.uid to device
             }
             val mixes = resolved.groupBy({ it.second.type to it.second.address }, { it })
@@ -79,6 +86,7 @@ internal class RootAudioRoutingBridge(private val context: Context) : Binder() {
                 check(routed) { "Android rejected the output route for app UID $uid" }
                 policyUids += uid
             }
+            Log.i(TAG, "Applied output affinity for ${policyUids.size} app UID(s)")
             null
         } catch (error: Throwable) {
             Log.e(TAG, "Could not apply per-app output routing in root bridge", error)

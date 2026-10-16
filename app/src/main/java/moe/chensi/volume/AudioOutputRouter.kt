@@ -49,7 +49,7 @@ internal class AudioOutputRouter(
         if (RootAccess.active) {
             val error = RootAccess.updateOutputRoutes(
                 selectedByUid.map { (uid, device) ->
-                    RootAccess.OutputRoute(uid, device.type, device.address)
+                    RootAccess.OutputRoute(uid, device.id, device.type, device.address)
                 }
             )
             usingRootBridge = true
