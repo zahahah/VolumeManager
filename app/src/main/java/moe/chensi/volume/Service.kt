@@ -243,9 +243,9 @@ class Service : AccessibilityService() {
                                             onSliderVisibilityChange = manager::setSystemSliderVisible,
                                             onChange = this@Service.handler::startIdleTimer,
                                             beforeMedia = {
-                                                moe.chensi.volume.compose.JamesDspControls(
-                                                    enabled = manager.jamesDspControlsEnabled,
-                                                    hideWhenInactive = manager.hideJamesDspWhenInactive,
+                                                moe.chensi.volume.compose.LightningDspControls(
+                                                    enabled = manager.lightningDspControlsEnabled,
+                                                    hideWhenInactive = manager.hideLightningDspWhenInactive,
                                                     onChange = this@Service.handler::startIdleTimer,
                                                     onOpenEffect = this@Service.handler::hideViewImmediately
                                                 )

@@ -54,36 +54,33 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import moe.chensi.volume.jamesdsp.JamesDspClient
-import moe.chensi.volume.jamesdsp.JamesDspState
+import moe.chensi.volume.lightningdsp.LightningDspClient
+import moe.chensi.volume.lightningdsp.LightningDspState
 import java.util.Locale
 
-private val JamesDspLilac = Color(0xFFD0BCFF)
-private val JamesDspLilacOn = Color(0xFF381E72)
-
-private data class JamesDspEffect(
+private data class LightningDspEffect(
     val id: String,
     val label: String,
     val shortLabel: String
 )
 
-private val jamesDspEffects = listOf(
-    JamesDspEffect("compander", "Compander", "CP"),
-    JamesDspEffect("bass", "Bass", "BS"),
-    JamesDspEffect("equalizer", "Equalizer", "EQ"),
-    JamesDspEffect("graphic_eq", "Graphic EQ", "GE"),
-    JamesDspEffect("reverb", "Reverb", "RV"),
-    JamesDspEffect("stereo_wide", "Stereo wide", "SW"),
-    JamesDspEffect("crossfeed", "Crossfeed", "CF"),
-    JamesDspEffect("tube", "Tube", "TU"),
-    JamesDspEffect("ddc", "DDC", "DD"),
-    JamesDspEffect("liveprog", "LiveProg", "LP"),
-    JamesDspEffect("convolver", "Convolver", "CV")
+private val lightningDspEffects = listOf(
+    LightningDspEffect("compander", "Compander", "CP"),
+    LightningDspEffect("bass", "Bass", "BS"),
+    LightningDspEffect("equalizer", "Equalizer", "EQ"),
+    LightningDspEffect("graphic_eq", "Graphic EQ", "GE"),
+    LightningDspEffect("reverb", "Reverb", "RV"),
+    LightningDspEffect("stereo_wide", "Stereo wide", "SW"),
+    LightningDspEffect("crossfeed", "Crossfeed", "CF"),
+    LightningDspEffect("tube", "Tube", "TU"),
+    LightningDspEffect("ddc", "DDC", "DD"),
+    LightningDspEffect("liveprog", "LiveProg", "LP"),
+    LightningDspEffect("convolver", "Convolver", "CV")
 )
 
-/** Global JamesDSP controls, opt-in from app settings; these are not per-app effects. */
+/** Global LightningDSP controls, opt-in from app settings; these are not per-app effects. */
 @Composable
-fun JamesDspControls(
+fun LightningDspControls(
     enabled: Boolean,
     hideWhenInactive: Boolean = true,
     onChange: (() -> Unit)? = null,
@@ -92,7 +89,7 @@ fun JamesDspControls(
 ) {
     if (!enabled) return
     val context = androidx.compose.ui.platform.LocalContext.current
-    val client = remember(context) { JamesDspClient(context) }
+    val client = remember(context) { LightningDspClient(context) }
     val scope = rememberCoroutineScope()
     var state by remember(client) { mutableStateOf(client.getCachedState()) }
     var expanded by remember { mutableStateOf(false) }
@@ -136,15 +133,15 @@ fun JamesDspControls(
             if (current == null) {
                 Text(
                     text = if (loadFinished) client.lastError
-                        ?: "JamesDSP not detected or integration API unavailable"
-                    else "Connecting to JamesDSP…",
+                        ?: "LightningDSP not detected or integration API unavailable"
+                    else "Connecting to LightningDSP…",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 val inactive = !current.active
-                val buttonColor = if (inactive) Color(0xFF555555) else JamesDspLilac
-                val buttonOnColor = if (inactive) Color(0xFF111111) else JamesDspLilacOn
+                val buttonColor = if (inactive) Color(0xFF555555) else MaterialTheme.colorScheme.primary
+                val buttonOnColor = if (inactive) Color(0xFF111111) else MaterialTheme.colorScheme.onPrimary
                 val mutedColor = if (inactive) Color(0xFFB0B0B0) else MaterialTheme.colorScheme.onSurfaceVariant
                 val monochrome = remember { ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) }
                 val appIcon = remember(current.packageName) {
@@ -166,7 +163,7 @@ fun JamesDspControls(
                                 expanded = !expanded
                             }
                             .semantics {
-                                contentDescription = "JamesDSP effects"
+                                contentDescription = "LightningDSP effects"
                                 role = Role.Button
                                 stateDescription = if (expanded) "Expanded" else "Collapsed"
                             },
@@ -175,7 +172,7 @@ fun JamesDspControls(
                         if (appIcon != null) {
                             Image(
                                 bitmap = appIcon,
-                                contentDescription = "JamesDSP",
+                                contentDescription = "LightningDSP",
                                 modifier = Modifier.size(30.dp),
                                 colorFilter = if (inactive) monochrome else null
                             )
@@ -187,7 +184,7 @@ fun JamesDspControls(
                             )
                         }
                     }
-                    val parameterRange = selectedParameter?.let { JamesDspClient.PARAMETER_RANGES[it] }
+                    val parameterRange = selectedParameter?.let { LightningDspClient.PARAMETER_RANGES[it] }
                     val sliderValue = if (selectedParameter == null) current.postGainDb
                         else current.parameters[selectedParameter] ?: parameterRange?.start ?: 0f
                     TrackSlider(
@@ -252,7 +249,7 @@ fun JamesDspControls(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(if (current.active) JamesDspLilac else Color(0xFF555555))
+                                    .background(if (current.active) MaterialTheme.colorScheme.primary else Color(0xFF555555))
                                     .clickable {
                                         val next = !current.active
                                         state = current.copy(active = next)
@@ -266,7 +263,7 @@ fun JamesDspControls(
                                         }
                                     }
                                     .semantics {
-                                        contentDescription = "JamesDSP power"
+                                        contentDescription = "LightningDSP power"
                                         role = Role.Switch
                                         stateDescription = if (current.active) "On" else "Off"
                                     },
@@ -275,7 +272,7 @@ fun JamesDspControls(
                                 androidx.compose.material3.Icon(
                                     imageVector = Icons.Default.PowerSettingsNew,
                                     contentDescription = null,
-                                    tint = if (current.active) JamesDspLilacOn else Color(0xFF111111)
+                                    tint = if (current.active) MaterialTheme.colorScheme.onPrimary else Color(0xFF111111)
                                 )
                             }
                             Text(
@@ -286,7 +283,7 @@ fun JamesDspControls(
                                 color = if (inactive) Color(0xFFB0B0B0) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        jamesDspEffects.forEach { effect ->
+                        lightningDspEffects.forEach { effect ->
                             val isEnabled = current.effects[effect.id] == true
                             Column(
                                 modifier = Modifier.width(58.dp),
@@ -299,13 +296,13 @@ fun JamesDspControls(
                                         .clip(CircleShape)
                                         .background(
                                             if (inactive) Color(0xFF555555)
-                                            else if (isEnabled) JamesDspLilac
-                                            else JamesDspLilac.copy(alpha = 0.24f)
+                                            else if (isEnabled) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
                                         )
                                         .combinedClickable(
                                             onLongClick = {
                                                 gainUpdateJob?.cancel()
-                                                if (effect.id in JamesDspClient.PARAMETER_RANGES) {
+                                                if (effect.id in LightningDspClient.PARAMETER_RANGES) {
                                                     selectedParameter = effect.id
                                                     onChange?.invoke()
                                                 } else {
@@ -342,7 +339,7 @@ fun JamesDspControls(
                                     Text(
                                         text = effect.shortLabel,
                                         color = if (inactive) Color(0xFF111111)
-                                        else if (isEnabled) JamesDspLilacOn
+                                        else if (isEnabled) MaterialTheme.colorScheme.onPrimary
                                         else MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold

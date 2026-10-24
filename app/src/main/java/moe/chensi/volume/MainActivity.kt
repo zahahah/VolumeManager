@@ -206,10 +206,10 @@ class MainActivity : ComponentActivity() {
                             isRootMode = manager.accessMode == Manager.AccessMode.Root,
                             startAtBoot = manager.startAtBoot,
                             onStartAtBootChange = manager::updateStartAtBoot,
-                            jamesDspControls = manager.jamesDspControlsEnabled,
-                            onJamesDspControlsChange = manager::updateJamesDspControls,
-                            hideJamesDspWhenInactive = manager.hideJamesDspWhenInactive,
-                            onHideJamesDspWhenInactiveChange = manager::updateHideJamesDspWhenInactive,
+                            lightningDspControls = manager.lightningDspControlsEnabled,
+                            onLightningDspControlsChange = manager::updateLightningDspControls,
+                            hideLightningDspWhenInactive = manager.hideLightningDspWhenInactive,
+                            onHideLightningDspWhenInactiveChange = manager::updateHideLightningDspWhenInactive,
                             onDismiss = { showSettingsDialog = false }
                         )
                     }
@@ -415,9 +415,9 @@ class MainActivity : ComponentActivity() {
                             isSliderVisible = manager::isSystemSliderVisible,
                             onSliderVisibilityChange = manager::setSystemSliderVisible,
                             beforeMedia = {
-                                moe.chensi.volume.compose.JamesDspControls(
-                                    enabled = manager.jamesDspControlsEnabled,
-                                    hideWhenInactive = manager.hideJamesDspWhenInactive
+                                moe.chensi.volume.compose.LightningDspControls(
+                                    enabled = manager.lightningDspControlsEnabled,
+                                    hideWhenInactive = manager.hideLightningDspWhenInactive
                                 )
                             }
                         )
@@ -507,10 +507,10 @@ class MainActivity : ComponentActivity() {
         isRootMode: Boolean,
         startAtBoot: Boolean,
         onStartAtBootChange: (Boolean) -> Unit,
-        jamesDspControls: Boolean,
-        onJamesDspControlsChange: (Boolean) -> Unit,
-        hideJamesDspWhenInactive: Boolean,
-        onHideJamesDspWhenInactiveChange: (Boolean) -> Unit,
+        lightningDspControls: Boolean,
+        onLightningDspControlsChange: (Boolean) -> Unit,
+        hideLightningDspWhenInactive: Boolean,
+        onHideLightningDspWhenInactiveChange: (Boolean) -> Unit,
         onDismiss: () -> Unit
     ) {
         AlertDialog(
@@ -520,31 +520,31 @@ class MainActivity : ComponentActivity() {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("JamesDSP controls")
+                            Text("LightningDSP controls")
                             Text(
-                                "Show global JamesDSP post gain and effects in the volume panel.",
+                                "Show global LightningDSP post gain and effects in the volume panel.",
                                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Switch(
-                            checked = jamesDspControls,
-                            onCheckedChange = onJamesDspControlsChange
+                            checked = lightningDspControls,
+                            onCheckedChange = onLightningDspControlsChange
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Hide JamesDSP from the volume panel when inactive")
+                            Text("Hide LightningDSP from the volume panel when inactive")
                             Text(
-                                "When disabled, the panel stays visible in grayscale while JamesDSP is off.",
+                                "When disabled, the panel stays visible in grayscale while LightningDSP is off.",
                                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Switch(
-                            checked = hideJamesDspWhenInactive,
-                            onCheckedChange = onHideJamesDspWhenInactiveChange
+                            checked = hideLightningDspWhenInactive,
+                            onCheckedChange = onHideLightningDspWhenInactiveChange
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))

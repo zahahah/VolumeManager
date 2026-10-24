@@ -52,9 +52,20 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         private set
     var startAtBoot by mutableStateOf(settings.getBoolean("start_at_boot", false))
         private set
-    var jamesDspControlsEnabled by mutableStateOf(settings.getBoolean("jamesdsp_controls_enabled", false))
+    // Keep the existing opt-in and visibility choices when upgrading from the JamesDSP-named UI.
+    var lightningDspControlsEnabled by mutableStateOf(
+        settings.getBoolean(
+            "lightningdsp_controls_enabled",
+            settings.getBoolean("jamesdsp_controls_enabled", false)
+        )
+    )
         private set
-    var hideJamesDspWhenInactive by mutableStateOf(settings.getBoolean("hide_jamesdsp_when_inactive", true))
+    var hideLightningDspWhenInactive by mutableStateOf(
+        settings.getBoolean(
+            "hide_lightningdsp_when_inactive",
+            settings.getBoolean("hide_jamesdsp_when_inactive", true)
+        )
+    )
         private set
     var rootError by mutableStateOf<String?>(null)
         private set
@@ -338,14 +349,20 @@ class Manager(context: Context, dataStore: DataStore<Preferences>) {
         }
     }
 
-    fun updateJamesDspControls(enabled: Boolean) {
-        jamesDspControlsEnabled = enabled
-        settings.edit().putBoolean("jamesdsp_controls_enabled", enabled).apply()
+    fun updateLightningDspControls(enabled: Boolean) {
+        lightningDspControlsEnabled = enabled
+        settings.edit()
+            .putBoolean("lightningdsp_controls_enabled", enabled)
+            .remove("jamesdsp_controls_enabled")
+            .apply()
     }
 
-    fun updateHideJamesDspWhenInactive(hide: Boolean) {
-        hideJamesDspWhenInactive = hide
-        settings.edit().putBoolean("hide_jamesdsp_when_inactive", hide).apply()
+    fun updateHideLightningDspWhenInactive(hide: Boolean) {
+        hideLightningDspWhenInactive = hide
+        settings.edit()
+            .putBoolean("hide_lightningdsp_when_inactive", hide)
+            .remove("hide_jamesdsp_when_inactive")
+            .apply()
     }
 
     fun connectRoot(context: Context) {

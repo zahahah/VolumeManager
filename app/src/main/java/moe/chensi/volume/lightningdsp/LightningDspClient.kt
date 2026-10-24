@@ -1,4 +1,4 @@
-package moe.chensi.volume.jamesdsp
+package moe.chensi.volume.lightningdsp
 
 import android.content.Context
 import android.content.ComponentName
@@ -7,7 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 
-data class JamesDspState(
+data class LightningDspState(
     val packageName: String,
     val postGainDb: Float,
     val effects: Map<String, Boolean>,
@@ -15,8 +15,8 @@ data class JamesDspState(
     val parameters: Map<String, Float>
 )
 
-/** Talks only to the narrow, caller-checked provider shipped by RootJamesDSP. */
-class JamesDspClient(context: Context) {
+/** Talks only to LightningDSP's narrow, caller-checked VolumeManager provider. */
+class LightningDspClient(context: Context) {
     companion object {
         const val METHOD_GET_STATE = "get_state"
         const val METHOD_SET_POST_GAIN = "set_post_gain"
@@ -39,12 +39,12 @@ class JamesDspClient(context: Context) {
         )
 
         val APP_PACKAGES = listOf(
-            "james.dsp", "james.dsp.debug",
+            "com.lightning.dsp", "com.lightning.dsp.debug",
             "me.timschneeberger.rootlessjamesdsp", "me.timschneeberger.rootlessjamesdsp.debug"
         )
 
         @Volatile
-        private var lastKnownState: JamesDspState? = null
+        private var lastKnownState: LightningDspState? = null
     }
 
     private val appContext = context.applicationContext
@@ -52,26 +52,26 @@ class JamesDspClient(context: Context) {
         private set
 
     /** Returns the last successful provider response so short-lived panels can render immediately. */
-    fun getCachedState(): JamesDspState? = lastKnownState
+    fun getCachedState(): LightningDspState? = lastKnownState
 
-    fun cacheState(state: JamesDspState?) {
+    fun cacheState(state: LightningDspState?) {
         if (state != null) lastKnownState = state
     }
 
-    fun getState(): JamesDspState? {
+    fun getState(): LightningDspState? {
         lastError = null
         for (packageName in APP_PACKAGES) {
             val result = try {
                 call(packageName, METHOD_GET_STATE, null)
             } catch (error: Exception) {
-                Log.w("JamesDspClient", "Integration call to $packageName failed", error)
+                Log.w("LightningDspClient", "Integration call to $packageName failed", error)
                 if (lastError == null) {
                     lastError = "$packageName: ${error.javaClass.simpleName}: ${error.message.orEmpty()}"
                 }
                 continue
             }
             val effects = EFFECT_IDS.associateWith { result.getBoolean("effect_$it", false) }
-            return JamesDspState(
+            return LightningDspState(
                 packageName = packageName,
                 postGainDb = result.getFloat(EXTRA_POST_GAIN, 0f).coerceIn(-15f, 15f),
                 effects = effects,
@@ -126,7 +126,7 @@ class JamesDspClient(context: Context) {
         return runCatching {
             appContext.startActivity(Intent().apply {
                 component = ComponentName(packageName,
-                    "me.timschneeberger.rootlessjamesdsp.activity.MainActivity")
+                    "lightning.dsp.activity.MainActivity")
                 action = "$packageName.action.OPEN_EFFECT"
                 putExtra("effect_id", effectId)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -140,6 +140,6 @@ class JamesDspClient(context: Context) {
     private fun call(packageName: String, method: String, extras: Bundle?): Bundle {
         val uri = Uri.parse("content://$packageName.volume_manager")
         return appContext.contentResolver.call(uri, method, null, extras)
-            ?: throw IllegalStateException("JamesDSP provider did not respond")
+            ?: throw IllegalStateException("LightningDSP provider did not respond")
     }
 }

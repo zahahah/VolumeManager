@@ -2,13 +2,17 @@ on:
   push:
     branches:
       - main
+      - master
       - pixel-test
+      - lightningdsp-port
     paths-ignore:
       - README.md
   pull_request:
     branches:
       - main
+      - master
       - pixel-test
+      - lightningdsp-port
     paths-ignore:
       - README.md
   workflow_dispatch:

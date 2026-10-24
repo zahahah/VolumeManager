@@ -67,14 +67,21 @@ Saved selections are preserved, but no output-device menu or routing policy is a
 ## Note
 
 This app uses the same API as MIUI's "Adjust media sound in multiple apps". Because this API can only setting volume, not reading, the volume set by one app will not be reflected in the other one.
-# JamesDSP integration (experimental)
+# LightningDSP integration (experimental)
 
-On the `pixel-test` branch, enable **JamesDSP controls** in Settings to show a
-global post-gain slider and effect toggles in the volume panel. The integration
-is global to the JamesDSP engine, not per application. It requires a compatible
-RootJamesDSP build that includes the protected `volume_manager` content-provider
-API; older installations are detected as unavailable. Gain is limited to
-−15..+15 dB and starts at the JamesDSP default of 0 dB.
+On the `lightningdsp-port` branch, enable **LightningDSP controls** in Settings
+to show global post-gain, power, and effect controls in the volume panel. These
+controls affect LightningDSP globally, not one app at a time. The panel uses
+Celestial Blue for its primary accent, while its surfaces continue to follow
+the system's dark mode and wallpaper-derived colors.
 
-GitHub Actions builds debug APKs for this branch. RootJamesDSP preview APKs are
-published as separate workflow artifacts in the RootJamesDSP fork.
+The integration calls LightningDSP's protected `volume_manager` content
+provider. Install a LightningDSP build with the provider API, then enable
+**Expose the VolumeManager integration API** in LightningDSP's settings. The
+root package is `com.lightning.dsp`. The Rootless build keeps its existing
+Android package identity and is also supported. Older builds or a disabled
+provider are reported as unavailable. The post-gain slider currently exposes
+−15..+15 dB and starts at 0 dB.
+
+GitHub Actions builds debug APKs for this branch. LightningDSP itself is built
+and released separately from this repository.

@@ -109,9 +109,9 @@ class RootOverlayPanel(private val context: Context) {
                                                 onSliderVisibilityChange = manager::setSystemSliderVisible,
                                                 onChange = ::restartDismissTimer,
                                                 beforeMedia = {
-                                                    moe.chensi.volume.compose.JamesDspControls(
-                                                        enabled = manager.jamesDspControlsEnabled,
-                                                        hideWhenInactive = manager.hideJamesDspWhenInactive,
+                                                    moe.chensi.volume.compose.LightningDspControls(
+                                                        enabled = manager.lightningDspControlsEnabled,
+                                                        hideWhenInactive = manager.hideLightningDspWhenInactive,
                                                         onChange = ::restartDismissTimer,
                                                         onOpenEffect = ::hide
                                                     )

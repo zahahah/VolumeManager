@@ -14,12 +14,12 @@
         tools:ignore="QueryAllPackagesPermission" />
 
     <queries>
-        <provider android:authorities="james.dsp.volume_manager" />
-        <provider android:authorities="james.dsp.debug.volume_manager" />
+        <provider android:authorities="com.lightning.dsp.volume_manager" />
+        <provider android:authorities="com.lightning.dsp.debug.volume_manager" />
         <provider android:authorities="me.timschneeberger.rootlessjamesdsp.volume_manager" />
         <provider android:authorities="me.timschneeberger.rootlessjamesdsp.debug.volume_manager" />
-        <package android:name="james.dsp" />
-        <package android:name="james.dsp.debug" />
+        <package android:name="com.lightning.dsp" />
+        <package android:name="com.lightning.dsp.debug" />
         <package android:name="me.timschneeberger.rootlessjamesdsp" />
         <package android:name="me.timschneeberger.rootlessjamesdsp.debug" />
     </queries>
