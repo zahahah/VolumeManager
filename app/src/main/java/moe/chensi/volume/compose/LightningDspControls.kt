@@ -58,6 +58,9 @@ import moe.chensi.volume.lightningdsp.LightningDspClient
 import moe.chensi.volume.lightningdsp.LightningDspState
 import java.util.Locale
 
+private val LightningDspCelestialBlue = Color(0xFF4997D0)
+private val LightningDspCelestialBlueOn = Color(0xFF002B43)
+
 private data class LightningDspEffect(
     val id: String,
     val label: String,
@@ -140,8 +143,8 @@ fun LightningDspControls(
                 )
             } else {
                 val inactive = !current.active
-                val buttonColor = if (inactive) Color(0xFF555555) else MaterialTheme.colorScheme.primary
-                val buttonOnColor = if (inactive) Color(0xFF111111) else MaterialTheme.colorScheme.onPrimary
+                val buttonColor = if (inactive) Color(0xFF555555) else LightningDspCelestialBlue
+                val buttonOnColor = if (inactive) Color(0xFF111111) else LightningDspCelestialBlueOn
                 val mutedColor = if (inactive) Color(0xFFB0B0B0) else MaterialTheme.colorScheme.onSurfaceVariant
                 val monochrome = remember { ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) }
                 val appIcon = remember(current.packageName) {
@@ -249,7 +252,7 @@ fun LightningDspControls(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(if (current.active) MaterialTheme.colorScheme.primary else Color(0xFF555555))
+                                    .background(if (current.active) LightningDspCelestialBlue else Color(0xFF555555))
                                     .clickable {
                                         val next = !current.active
                                         state = current.copy(active = next)
@@ -272,7 +275,7 @@ fun LightningDspControls(
                                 androidx.compose.material3.Icon(
                                     imageVector = Icons.Default.PowerSettingsNew,
                                     contentDescription = null,
-                                    tint = if (current.active) MaterialTheme.colorScheme.onPrimary else Color(0xFF111111)
+                                    tint = if (current.active) LightningDspCelestialBlueOn else Color(0xFF111111)
                                 )
                             }
                             Text(
@@ -296,8 +299,8 @@ fun LightningDspControls(
                                         .clip(CircleShape)
                                         .background(
                                             if (inactive) Color(0xFF555555)
-                                            else if (isEnabled) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                                            else if (isEnabled) LightningDspCelestialBlue
+                                            else LightningDspCelestialBlue.copy(alpha = 0.24f)
                                         )
                                         .combinedClickable(
                                             onLongClick = {
@@ -339,7 +342,7 @@ fun LightningDspControls(
                                     Text(
                                         text = effect.shortLabel,
                                         color = if (inactive) Color(0xFF111111)
-                                        else if (isEnabled) MaterialTheme.colorScheme.onPrimary
+                                        else if (isEnabled) LightningDspCelestialBlueOn
                                         else MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
